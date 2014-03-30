@@ -1,5 +1,3 @@
-%include "gfx.asm"
-
 %define GRID_WIDTH  300
 %define GRID_HEIGHT 150
 %define TILE_WIDTH  10
@@ -14,28 +12,39 @@ snake times MAX_SNAKE_LEN db 0,0
 snake_startidx dw 0
 snake_length dw 0
 
-dir_x db 0
+dir_x db 1
 dir_y db 0
+
+counter dw 0
 
 main:
 	; initialise grid
 	call initgrid
 	
 	; make the snake
-	mov [snake], word 0x0a0a
+	mov ax, word 0x0101
+	mov [snake], ax
+	push ax ; pos
+	xor ax, ax
+	push ax ; col (0)
+	call snake_boxcol
 	inc word [snake_length]
-	call snake_endpos
-	call snake_endposcol
 	
-	mov [snake+2], word 0x0b0a
+	mov ax, word 0x0102
+	mov [snake+2], ax
+	push ax ; pos
+	xor ax, ax
+	push ax ; col (0)
+	call snake_boxcol
 	inc word [snake_length]
-	call snake_endpos
-	call snake_endposcol
 	
-	mov [snake+4], word 0x0c0a
+	mov ax, word 0x0103
+	mov [snake+4], ax
+	push ax ; pos
+	xor ax, ax
+	push ax ; col (0)
+	call snake_boxcol
 	inc word [snake_length]
-	call snake_endpos
-	call snake_endposcol
 	
 .gameloop:
 	call update
@@ -48,11 +57,14 @@ main:
 ; Returns y in ah
 snake_startpos:
 	push bx
-	mov ax, [snake_startidx]
-	mov bx, 2
-	mul bx
+	push dx
+	
+	mov ax, 2
+	mul word [snake_startidx]
 	mov bx, ax
 	mov ax, [snake + bx]
+	
+	pop dx
 	pop bx
 	retn
 
@@ -68,13 +80,12 @@ snake_endpos:
 	mov ax, [snake_length]
 	add ax, [snake_startidx]
 	dec ax
-	;mov bx, word MAX_SNAKE_LEN
-	;div bx
-	mov dx, ax
+	mov bx, word MAX_SNAKE_LEN
+	div bx
+	;mov dx, ax
 	
-	mov ax, dx
-	mov bx, 2
-	mul bx
+	mov ax, 2
+	mul dx
 	mov bx, ax
 	
 	mov ax, [snake + bx]
@@ -94,10 +105,15 @@ snake_setendpos:
 	push ax
 	
 	mov ax, word [snake_length]
+	add ax, [snake_startidx]
+	dec ax
 	mov bx, word MAX_SNAKE_LEN
 	div bx
-	add dx, [snake_startidx]
-	mov bx, dx
+	
+	mov ax, 2
+	mul dx
+	mov bx, ax
+	
 	pop ax
 	mov [snake + bx], ax
 	
@@ -105,16 +121,19 @@ snake_setendpos:
 	pop bx
 	retn
 
-; Colours the end position of the snake.
+; Sets the colour of a box.
 ;
-; al contains the x
-; ah contains the y
-snake_endposcol:
+; [bp + 6] contains the pos
+; [bp + 4] contains the colour
+snake_boxcol:
+	push bp
+	mov bp, sp
+	
 	xor bx, bx
 	xor cx, cx
 	
-	mov bl, al ;x
-	mov cl, ah ;y
+	mov bl, byte [bp + 6] ;x
+	mov cl, byte [bp + 7] ;y
 	
 	mov ax, TILE_WIDTH
 	mul bx
@@ -130,38 +149,93 @@ snake_endposcol:
 	
 	push bx
 	push cx
-	push word TILE_WIDTH-1
-	push word TILE_HEIGHT-1
-	push word 0
+	mov ax, word TILE_WIDTH-1
+	push ax ; TILE_WIDTH-1
+	mov ax, word TILE_HEIGHT-1
+	push ax ; TILE_HEIGHT-1
+	mov ax, word [bp + 4]
+	push ax
 	call fillrect
 	
-	retn
+	pop bp
+	retn 4
 
 ; Moves the snake.
 move_snake:
-	call snake_startpos ;get start pos
+	;sleep ~.5 seconds
+	mov ah, 0x86
+	mov cx, 6   ; high word (0x0004)
+	xor dx, dx  ; low word  (0x0000)
+	int 0x15    ; microseconds
+
+	call snake_startpos
+	; registers intact, result in ax
+	
+	push ax
+	mov ax, 7
+	push ax
+	call snake_boxcol
+	; registers destroyed
+	
+	call snake_endpos ;get end pos
+	; registers intact, result in ax
+	
+	inc word [snake_startidx] ;move snake along
+	
+	cmp al, NUM_XTILES-2
+	jl .skip1
+	mov byte [dir_x], 0
+	mov byte [dir_y], 1
+.skip1:
+	cmp ah, NUM_YTILES-2
+	jl .skip2
+	mov byte [dir_x], -1
+	mov byte [dir_y], 0
+.skip2:
+	cmp al, 1
+	jge .skip3
+	mov byte [dir_x], 0
+	mov byte [dir_y], -1
+.skip3:
+	cmp ah, 1
+	jge .skip4
+	mov byte [dir_x], 1
+	mov byte [dir_y], 0
+.skip4:
+	
 	add al, [dir_x]
 	add ah, [dir_y]
-	;inc word [snake_startidx] ;move snake along
-	;call snake_setendpos ;move head
-	call snake_endposcol ;colourise
 	
+	call snake_setendpos ;move head
+	; registers intact
+	
+	push ax
+	xor ax, ax
+	push ax
+	call snake_boxcol ;colourise
+	; registers destroyed
 	retn
 	
 update:
 	
-	call move_snake
+	; tail call for now, 'cause why the hell not
+	jmp move_snake
 	
-	retn
+	;retn
 	
 initgrid:
 	
 	; background
-	push word GRID_XOFFS
-	push word GRID_YOFFS
-	push word GRID_WIDTH
-	push word GRID_HEIGHT
-	push word 0x7
+	mov ax, GRID_XOFFS
+	push ax
+	mov ax, GRID_YOFFS
+	push ax
+	mov ax, GRID_WIDTH
+	push ax
+	mov ax, GRID_HEIGHT
+	push ax
+	mov ax, 0x7
+	push ax
 	call fillrect
 	
 	; grid vertical stripes
@@ -172,9 +246,12 @@ initgrid:
 	
 	push cx
 	push cx
-	push word GRID_YOFFS
-	push word GRID_HEIGHT
-	push word 8
+	mov ax, GRID_YOFFS
+	push ax
+	mov ax, GRID_HEIGHT
+	push ax
+	mov ax, 8
+	push ax
 	call renderlinev
 	; registers destroyed
 	pop cx
@@ -190,10 +267,13 @@ initgrid:
 	jge .gridybreak
 	
 	push cx
-	push word GRID_XOFFS
+	mov ax, GRID_XOFFS
+	push ax
 	push cx
-	push word GRID_WIDTH
-	push word 8
+	mov ax, GRID_WIDTH
+	push ax
+	mov ax, 8
+	push ax
 	call renderlineh
 	; registers destroyed
 	pop cx
@@ -203,28 +283,44 @@ initgrid:
 .gridybreak:
 
 	; grid outline
-	push word GRID_XOFFS
-	push word GRID_YOFFS
-	push word GRID_WIDTH
-	push word 9
+	mov ax, GRID_XOFFS
+	push ax
+	mov ax, GRID_YOFFS
+	push ax
+	mov ax, GRID_WIDTH
+	push ax
+	mov ax, 9
+	push ax
 	call renderlineh
 	
-	push word GRID_XOFFS
-	push word GRID_YOFFS+GRID_HEIGHT
-	push word GRID_WIDTH
-	push word 9
+	mov ax, GRID_XOFFS
+	push ax
+	mov ax, GRID_YOFFS+GRID_HEIGHT
+	push ax
+	mov ax, GRID_WIDTH
+	push ax
+	mov ax, 9
+	push ax
 	call renderlineh
 	
-	push word GRID_XOFFS
-	push word GRID_YOFFS
-	push word GRID_HEIGHT
-	push word 9
+	mov ax, GRID_XOFFS
+	push ax
+	mov ax, GRID_YOFFS
+	push ax
+	mov ax, GRID_HEIGHT
+	push ax
+	mov ax, 9
+	push ax
 	call renderlinev
 	
-	push word GRID_XOFFS+GRID_WIDTH
-	push word GRID_YOFFS
-	push word GRID_HEIGHT
-	push word 9
+	mov ax, GRID_XOFFS+GRID_WIDTH
+	push ax
+	mov ax, GRID_YOFFS
+	push ax
+	mov ax, GRID_HEIGHT
+	push ax
+	mov ax, 9
+	push ax
 	call renderlinev
 
 	retn

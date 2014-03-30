@@ -1,4 +1,5 @@
 	[bits 16]
+	[cpu 8086]
 	
 	org 0x100
 entry:
@@ -20,3 +21,4 @@ entry:
 	int 0x21 ; exit
 	
 %include "main.asm"
+%include "gfx.asm"

@@ -72,7 +72,8 @@ renderint:
 	jmp .calcloop
 .leave:
 	push cx     ;numDigits
-	push word 0 ;numDigit
+	xor ax, ax
+	push ax     ;numDigit
 .renderloop:
 	;render digits in reverse order
 	
@@ -148,8 +149,10 @@ renderdigit:
 	mov dl, [bp + 4] ; little endian, col byte is the first one
 	call replcol     ; replace colours with col
 	
-	push word 4 ;w
-	push word 5 ;h
+	mov ax, 4
+	push ax ;w
+	mov ax, 5
+	push ax ;h
 	push word [bp + 8] ;xoffs
 	push word [bp + 6] ;yoffs
 	
