@@ -202,6 +202,72 @@ fillrect:
 	pop bp
 	retn 10
 
+; Render a vertical line.
+;
+; xoffs 10[bp]
+; yoffs  8[bp]
+; height 6[bp]
+; colour 4[bp]
+renderlinev:
+	push bp
+	mov bp, sp
+	
+	mov ax, 0xa000
+	mov es, ax
+	
+	mov cx, 0 ;y
+.rlvloop:
+	cmp cx, [bp + 6]
+	jge .rlvbreak
+	
+	mov ax, 320
+	mov dx, [bp + 8]
+	add dx, cx        ; yoffs + y
+	mul dx           ; ^ * 320
+	mov bx, [bp + 10] ; xoffs
+	add bx, ax        ; + xoffs
+	mov al, [bp + 4]  ; col
+	mov [es:bx], al
+	
+	inc cx
+	jmp .rlvloop
+.rlvbreak:
+	pop bp
+	retn 8
+
+; Render a horizontal line.
+;
+; xoffs 10[bp]
+; yoffs  8[bp]
+; width  6[bp]
+; colour 4[bp]
+renderlineh:
+	push bp
+	mov bp, sp
+	
+	mov ax, 0xa000
+	mov es, ax
+	
+	mov ax, 320
+	mul word [bp + 8]
+	
+	mov cx, 0 ;x
+.rlhloop:
+	cmp cx, [bp + 6]
+	jge .rlhbreak
+	
+	mov bx, ax
+	add bx, [bp + 10]
+	add bx, cx
+	mov dl, [bp + 4]  ; col
+	mov [es:bx], dl
+	
+	inc cx
+	jmp .rlhloop
+.rlhbreak:
+	pop bp
+	retn 8
+
 	tex0 db 0,1,1,0, 1,0,0,1, 1,0,0,1, 1,0,0,1, 0,1,1,0
 	tex1 db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0
 	tex2 db 0,1,1,0, 1,0,0,1, 0,0,1,0, 0,1,0,0, 1,1,1,1
