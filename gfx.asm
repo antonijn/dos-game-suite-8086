@@ -158,6 +158,49 @@ renderdigit:
 	
 	pop bp
 	retn 8
+	
+; Fills a rectangle with a colour.
+;
+; xoffs 12[bp]
+; yoffs 10[bp]
+; width  8[bp]
+; height 6[bp]
+; colour 4[bp]
+fillrect:
+	push bp
+	mov bp, sp
+	
+	mov ax, 0xa000
+	mov es, ax
+	
+	mov cx, 0 ;y
+.jmpY1:
+	cmp cx, [bp + 6]
+	jge .breakY1
+
+	mov bx, 0 ;x
+.jmpX1:
+	cmp bx, [bp + 8]
+	jge .breakX1
+	
+	mov ax, cx
+	add ax, [bp + 10]
+	mov di, 320
+	mul di
+	add ax, [bp + 12]
+	add ax, bx
+	mov di, ax
+	mov al, [bp + 4]
+	mov [es:di], al
+	
+	inc bx
+	jmp .jmpX1
+.breakX1:
+	inc cx
+	jmp .jmpY1
+.breakY1:
+	pop bp
+	retn 10
 
 	tex0 db 0,1,1,0, 1,0,0,1, 1,0,0,1, 1,0,0,1, 0,1,1,0
 	tex1 db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0
@@ -168,7 +211,7 @@ renderdigit:
 	tex6 db 0,1,1,1, 1,0,0,0, 1,1,1,1, 1,0,0,1, 1,1,1,1
 	tex7 db 1,1,1,1, 0,0,0,1, 0,0,1,0, 0,1,0,0, 1,0,0,0
 	tex8 db 0,1,1,0, 1,0,0,1, 0,1,1,0, 1,0,0,1, 0,1,1,0
-	tex9 db 0,1,1,0, 1,0,0,1, 0,1,1,0, 0,0,0,1, 1,1,1,0
+	tex9 db 1,1,1,1, 1,0,0,1, 1,1,1,1, 0,0,0,1, 1,1,1,0
 	texA db 0,1,1,0, 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,0,0,1
 	texB db 1,1,1,0, 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,1,1,1
 	texC db 0,1,1,1, 1,0,0,0, 1,0,0,0, 1,0,0,0, 0,1,1,1
