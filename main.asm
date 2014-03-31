@@ -7,6 +7,7 @@
 %define NUM_XTILES GRID_WIDTH/TILE_WIDTH
 %define NUM_YTILES GRID_HEIGHT/TILE_HEIGHT
 %define MAX_SNAKE_LEN 100
+%define START_SNAKE_LEN 5
 
 snake times MAX_SNAKE_LEN db 0,0
 snake_startidx dw 0
@@ -22,29 +23,7 @@ main:
 	call initgrid
 	
 	; make the snake
-	mov ax, word 0x0101
-	mov [snake], ax
-	push ax ; pos
-	mov ax, BLACK
-	push ax ; col (0)
-	call snake_boxcol
-	inc word [snake_length]
-	
-	mov ax, word 0x0102
-	mov [snake+2], ax
-	push ax ; pos
-	mov ax, BLACK
-	push ax ; col (0)
-	call snake_boxcol
-	inc word [snake_length]
-	
-	mov ax, word 0x0103
-	mov [snake+4], ax
-	push ax ; pos
-	mov ax, BLACK
-	push ax ; col (0)
-	call snake_boxcol
-	inc word [snake_length]
+	call initsnake
 	
 .gameloop:
 	call update
@@ -164,15 +143,25 @@ snake_boxcol:
 
 ; Get input
 input:
+	xor cx, cx
+
+.reproc:
 	mov ah, 0x01
 	int 0x16
 	jnz .processkey
-	retn
+	
+	; if no key
+	cmp cx, 0
+	jne .handlekey ;handle if not first time
+	retn ;return if first time
 .processkey:
-
 	;remove from buffer
 	mov ah, 0x00
 	int 0x16
+	mov cx, 1
+	; keep going until buffer is empty
+	jmp .reproc
+.handlekey:
 	
 	cmp al, 'a'
 	jne .ab
@@ -204,9 +193,10 @@ input:
 	
 ; Moves the snake.
 move_snake:
+
 	;sleep ~.5 seconds
 	mov ah, 0x86
-	mov cx, 6   ; high word (0x0004)
+	mov cx, 3   ; high word (0x0003)
 	xor dx, dx  ; low word  (0x0000)
 	int 0x15    ; microseconds
 
@@ -253,6 +243,39 @@ update:
 	jmp move_snake
 	
 	;retn
+	
+initsnake:
+	
+	xor cx, cx
+.isloop:
+	cmp cx, START_SNAKE_LEN
+	jge .isbreak
+	
+	mov ax, 2
+	mul cx     ; snake[2 * i]
+	mov bx, ax
+	
+	mov al, cl ;x
+	mov ah, 2  ;y
+	add al, 2
+	
+	mov [snake + bx], ax
+	
+	push cx
+	
+	push ax ;pos
+	mov ax, BLACK
+	push ax ;colour
+	call snake_boxcol
+	; registers destroyed
+	
+	inc word [snake_length]
+	
+	pop cx
+	inc cx
+	jmp .isloop
+.isbreak:
+	retn
 	
 initgrid:
 	
