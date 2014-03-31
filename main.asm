@@ -8,7 +8,7 @@
 %define NUM_YTILES GRID_HEIGHT/TILE_HEIGHT
 %define MAX_SNAKE_LEN 100
 %define START_SNAKE_LEN 5
-%define ACCELERATION 100
+%define ACCELERATION 2000
 
 %define BORDER_COLOUR LIGHT_GREEN
 %define POINT_COLOUR WHITE
@@ -338,14 +338,6 @@ move_snake:
 	mov cx, word [interval + 2] ; msw: little endian
 	int 0x15    ; microseconds
 	
-	cmp cx, 0
-	je .skip_speedup
-	
-	; speed up
-	sub word [interval], ACCELERATION
-	sbb word [interval + 2], 0
-.skip_speedup:
-	
 	call snake_endpos ;get end pos
 	; registers intact, result in ax
 	
@@ -403,6 +395,14 @@ move_snake:
 	cmp ah, [pnt_y] ; && y == pnt_y
 	jne .nepnt_y
 	; hit point
+	
+	cmp word [interval + 2], 0
+	je .skip_speedup
+	
+	; speed up
+	sub word [interval], ACCELERATION
+	sbb word [interval + 2], 0
+.skip_speedup:
 	
 	add word [score], 10
 	call renderscore
