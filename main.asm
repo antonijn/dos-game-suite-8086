@@ -59,8 +59,7 @@ rand:
 
 renderscore:
 	
-	mov ax, [score]
-	push ax
+	push word [score]
 	mov ax, 10
 	push ax
 	push ax
@@ -347,6 +346,23 @@ move_snake:
 	add al, [dir_x]
 	add ah, [dir_y]
 	
+	cmp al, -1
+	jne .xneminusone
+	mov al, NUM_XTILES-1
+.xneminusone:
+	cmp ah, -1
+	jne .yneminusone
+	mov ah, NUM_YTILES-1
+.yneminusone:
+	cmp al, NUM_XTILES
+	jne .xnentiles
+	mov al, 0
+.xnentiles:
+	cmp ah, NUM_YTILES
+	jne .ynentiles
+	mov ah, 0
+.ynentiles:
+	
 	call snake_setnextpos ;move head
 	; registers intact
 	
@@ -357,7 +373,7 @@ move_snake:
 	test ax, ax
 	jz .no_exit
 	
-	jmp exit
+	jmp terminate
 	
 .no_exit:
 	pop ax ;restore

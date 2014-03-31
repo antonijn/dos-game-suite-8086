@@ -13,7 +13,7 @@ entry:
 	
 	call main
 	
-exit:
+terminate:
 	mov ax, [mode]      ; restore vid mode
 	mov ah, 0x00
 	int 0x10
