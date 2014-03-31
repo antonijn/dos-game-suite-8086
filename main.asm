@@ -13,8 +13,15 @@ snake times MAX_SNAKE_LEN db 0,0
 snake_startidx dw 0
 snake_length dw 0
 
+pnt_x db 0
+pnt_y db 0
+
 dir_x db 1
 dir_y db 0
+
+rnd_seed dw 1337
+rnd_a dw 5555
+rnd_b dw 444
 
 counter dw 0
 
@@ -25,10 +32,22 @@ main:
 	; make the snake
 	call initsnake
 	
+	call newpoint
+	
 .gameloop:
 	call update
 	jmp .gameloop
 
+; Gets a random number
+;
+; Returns in ax
+rand:
+	mov ax, [rnd_a]
+	mul word [rnd_seed]
+	add ax, [rnd_b]
+	mov word [rnd_seed], ax
+	retn
+	
 ; Gets the snake start pos.
 ; note: leaves registers intact
 ;
@@ -79,7 +98,7 @@ snake_endpos:
 ;
 ; al contains x
 ; ah contains y
-snake_setendpos:
+snake_setnextpos:
 	push bx
 	push dx
 	push ax
@@ -87,7 +106,7 @@ snake_setendpos:
 	xor dx, dx
 	mov ax, word [snake_length]
 	add ax, [snake_startidx]
-	dec ax
+	;dec ax
 	mov bx, word MAX_SNAKE_LEN
 	div bx
 	
@@ -191,6 +210,30 @@ input:
 .wd:
 	retn
 	
+newpoint:
+	
+	call rand ; ax
+	xor dx, dx
+	mov bx, NUM_YTILES
+	div bx
+	mov [pnt_y], dl
+	mov cl, dl ;y
+	
+	call rand ; ax
+	xor dx, dx
+	mov bx, NUM_XTILES ;x
+	div bx
+	mov [pnt_x], dl
+	
+	mov dh, cl
+	
+	push dx
+	mov ax, CYAN
+	push ax
+	call snake_boxcol
+	
+	retn
+	
 ; Moves the snake.
 move_snake:
 
@@ -199,7 +242,42 @@ move_snake:
 	mov cx, 3   ; high word (0x0003)
 	xor dx, dx  ; low word  (0x0000)
 	int 0x15    ; microseconds
-
+	
+	call snake_endpos ;get end pos
+	; registers intact, result in ax
+	
+	push ax
+	
+	call input
+	
+	pop ax ;pop endpos back
+	add al, [dir_x]
+	add ah, [dir_y]
+	
+	call snake_setnextpos ;move head
+	; registers intact
+	
+	push ax ;store before boxcol
+	
+	push ax
+	mov ax, BLACK
+	push ax
+	call snake_boxcol ;colourise
+	; registers destroyed
+	
+	pop ax ;restore
+	
+	cmp al, [pnt_x] ; x == pnt_x
+	jne .nepnt_y
+	cmp ah, [pnt_y] ; && y == pnt_y
+	jne .nepnt_y
+	
+	call newpoint
+	
+	inc word [snake_length]
+	jmp .inclen
+	
+.nepnt_y:
 	call snake_startpos
 	; registers intact, result in ax
 	
@@ -209,32 +287,13 @@ move_snake:
 	call snake_boxcol
 	; registers destroyed
 	
-	call snake_endpos ;get end pos
-	; registers intact, result in ax
-	push ax
-	
-	; change idx (move snake along) (doesn't work, halp!)
 	xor dx, dx
 	mov ax, [snake_startidx]
 	inc ax
 	mov bx, MAX_SNAKE_LEN
 	div bx
 	mov [snake_startidx], dx
-	
-	call input
-	
-	pop ax ;pop endpos back
-	add al, [dir_x]
-	add ah, [dir_y]
-	
-	call snake_setendpos ;move head
-	; registers intact
-	
-	push ax
-	mov ax, BLACK
-	push ax
-	call snake_boxcol ;colourise
-	; registers destroyed
+.inclen:
 	retn
 	
 update:
