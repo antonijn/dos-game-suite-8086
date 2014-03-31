@@ -19,6 +19,6 @@ entry:
 	
 	mov ah, 0x4c
 	int 0x21 ; exit
-	
-%include "main.asm"
+
 %include "gfx.asm"
+%include "main.asm"

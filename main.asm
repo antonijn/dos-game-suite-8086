@@ -25,7 +25,7 @@ main:
 	mov ax, word 0x0101
 	mov [snake], ax
 	push ax ; pos
-	xor ax, ax
+	mov ax, BLACK
 	push ax ; col (0)
 	call snake_boxcol
 	inc word [snake_length]
@@ -33,7 +33,7 @@ main:
 	mov ax, word 0x0102
 	mov [snake+2], ax
 	push ax ; pos
-	xor ax, ax
+	mov ax, BLACK
 	push ax ; col (0)
 	call snake_boxcol
 	inc word [snake_length]
@@ -41,7 +41,7 @@ main:
 	mov ax, word 0x0103
 	mov [snake+4], ax
 	push ax ; pos
-	xor ax, ax
+	mov ax, BLACK
 	push ax ; col (0)
 	call snake_boxcol
 	inc word [snake_length]
@@ -172,16 +172,29 @@ move_snake:
 	; registers intact, result in ax
 	
 	push ax
-	mov ax, 7
+	mov ax, LIGHT_GRAY
 	push ax
 	call snake_boxcol
 	; registers destroyed
 	
 	call snake_endpos ;get end pos
 	; registers intact, result in ax
+	push ax
 	
-	inc word [snake_startidx] ;move snake along
+	; change idx (move snake along) (doesn't work, halp!)
+%if 0
+	mov ax, [snake_startidx]
+	inc ax
+	mov bx, MAX_SNAKE_LEN
+	div bx
+	mov [snake_startidx], dx
+%elif
+	inc word [snake_startidx]
+%endif
 	
+	pop ax ;pop endpos back
+	
+%if 0
 	cmp al, NUM_XTILES-2
 	jl .skip1
 	mov byte [dir_x], 0
@@ -202,6 +215,7 @@ move_snake:
 	mov byte [dir_x], 1
 	mov byte [dir_y], 0
 .skip4:
+%endif
 	
 	add al, [dir_x]
 	add ah, [dir_y]
@@ -210,7 +224,7 @@ move_snake:
 	; registers intact
 	
 	push ax
-	xor ax, ax
+	mov ax, BLACK
 	push ax
 	call snake_boxcol ;colourise
 	; registers destroyed
@@ -234,7 +248,7 @@ initgrid:
 	push ax
 	mov ax, GRID_HEIGHT
 	push ax
-	mov ax, 0x7
+	mov ax, LIGHT_GRAY
 	push ax
 	call fillrect
 	
@@ -250,7 +264,7 @@ initgrid:
 	push ax
 	mov ax, GRID_HEIGHT
 	push ax
-	mov ax, 8
+	mov ax, DARK_GRAY
 	push ax
 	call renderlinev
 	; registers destroyed
@@ -272,7 +286,7 @@ initgrid:
 	push cx
 	mov ax, GRID_WIDTH
 	push ax
-	mov ax, 8
+	mov ax, DARK_GRAY
 	push ax
 	call renderlineh
 	; registers destroyed
@@ -289,7 +303,7 @@ initgrid:
 	push ax
 	mov ax, GRID_WIDTH
 	push ax
-	mov ax, 9
+	mov ax, CYAN
 	push ax
 	call renderlineh
 	
@@ -299,7 +313,7 @@ initgrid:
 	push ax
 	mov ax, GRID_WIDTH
 	push ax
-	mov ax, 9
+	mov ax, CYAN
 	push ax
 	call renderlineh
 	
@@ -309,7 +323,7 @@ initgrid:
 	push ax
 	mov ax, GRID_HEIGHT
 	push ax
-	mov ax, 9
+	mov ax, CYAN
 	push ax
 	call renderlinev
 	
@@ -319,7 +333,7 @@ initgrid:
 	push ax
 	mov ax, GRID_HEIGHT
 	push ax
-	mov ax, 9
+	mov ax, CYAN
 	push ax
 	call renderlinev
 
