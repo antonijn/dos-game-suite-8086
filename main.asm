@@ -31,13 +31,12 @@ rnd_b dw 444
 
 counter dw 0
 
+score dw 0
+
 main:
-	; initialise grid
+	call renderscore
 	call initgrid
-	
-	; make the snake
 	call initsnake
-	
 	call newpoint
 	
 .gameloop:
@@ -54,6 +53,20 @@ rand:
 	mov word [rnd_seed], ax
 	retn
 
+renderscore:
+	
+	mov ax, [score]
+	push ax
+	mov ax, 10
+	push ax
+	push ax
+	push ax
+	mov ax, WHITE
+	push ax
+	call renderint
+	
+	retn
+	
 ; Checks if given tile is snake.
 ;
 ; [bp + 4] is tile pos
@@ -333,7 +346,18 @@ move_snake:
 	call snake_setnextpos ;move head
 	; registers intact
 	
-	push ax ;store before boxcol
+	push ax ;store before is_tile_snake
+	
+	push ax
+	call is_tile_snake
+	test ax, ax
+	jz .no_exit
+	
+	jmp exit
+	
+.no_exit:
+	pop ax ;restore
+	push ax; save before boxcol
 	
 	push ax
 	mov ax, SNAKE_COLOUR
@@ -347,7 +371,10 @@ move_snake:
 	jne .nepnt_y
 	cmp ah, [pnt_y] ; && y == pnt_y
 	jne .nepnt_y
+	; hit point
 	
+	add word [score], 10
+	call renderscore
 	call newpoint
 	
 	inc word [snake_length]

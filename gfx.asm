@@ -78,6 +78,13 @@ renderint:
 	
 	mov cx, 0
 	mov ax, [bp + 12]
+	test ax, ax
+	jnz .calcloop
+	
+	; i is zero
+	push cx
+	inc cx
+	
 .calcloop:
 	cmp ax, 0
 	je .leave         ; if (!i) break
