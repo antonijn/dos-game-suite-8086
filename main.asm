@@ -34,6 +34,10 @@ counter dw 0
 score dw 0
 
 main:
+	mov ah, 0x00
+	int 0x1a
+	mov [rnd_seed], dx
+
 	call renderscore
 	call initgrid
 	call initsnake
