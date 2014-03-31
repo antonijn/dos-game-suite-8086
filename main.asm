@@ -8,12 +8,13 @@
 %define NUM_YTILES GRID_HEIGHT/TILE_HEIGHT
 %define MAX_SNAKE_LEN 100
 %define START_SNAKE_LEN 5
+%define ACCELERATION 100
 
-%define BORDER_COLOUR RED
+%define BORDER_COLOUR LIGHT_GREEN
 %define POINT_COLOUR WHITE
 %define GRID_BACKG_COLOUR LIGHT_GRAY
 %define GRID_LINE_COLOUR DARK_GRAY
-%define SNAKE_COLOUR GRID_LINE_COLOUR
+%define SNAKE_COLOUR GREEN
 
 snake times MAX_SNAKE_LEN db 0,0
 snake_startidx dw 0
@@ -32,6 +33,8 @@ rnd_b dw 444
 counter dw 0
 
 score dw 0
+
+interval dd 0x30000
 
 main:
 	mov ah, 0x00
@@ -331,9 +334,17 @@ move_snake:
 
 	;sleep ~.5 seconds
 	mov ah, 0x86
-	mov cx, 3   ; high word (0x0003)
-	xor dx, dx  ; low word  (0x0000)
+	mov dx, word [interval]     ; lsw
+	mov cx, word [interval + 2] ; msw: little endian
 	int 0x15    ; microseconds
+	
+	cmp cx, 0
+	je .skip_speedup
+	
+	; speed up
+	sub word [interval], ACCELERATION
+	sbb word [interval + 2], 0
+.skip_speedup:
 	
 	call snake_endpos ;get end pos
 	; registers intact, result in ax
