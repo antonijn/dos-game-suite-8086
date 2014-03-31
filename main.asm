@@ -263,6 +263,8 @@ input:
 	jmp .reproc
 .handlekey:
 	
+	cmp byte [dir_x], 1
+	je .ab
 	cmp al, 'a'
 	jne .ab
 	mov byte [dir_x], -1
@@ -270,6 +272,8 @@ input:
 	retn
 .ab:
 	
+	cmp byte [dir_y], -1
+	je .sb
 	cmp al, 's'
 	jne .sb
 	mov byte [dir_x], 0
@@ -277,6 +281,8 @@ input:
 	retn
 .sb:
 
+	cmp byte [dir_x], -1
+	je .db
 	cmp al, 'd'
 	jne .db
 	mov byte [dir_x], 1
@@ -284,6 +290,8 @@ input:
 	retn
 .db:
 	
+	cmp byte [dir_y], 1
+	je .wd
 	cmp al, 'w'
 	jne .wd
 	mov byte [dir_x], 0
