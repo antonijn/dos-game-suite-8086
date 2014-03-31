@@ -9,6 +9,12 @@
 %define MAX_SNAKE_LEN 100
 %define START_SNAKE_LEN 5
 
+%define BORDER_COLOUR RED
+%define POINT_COLOUR WHITE
+%define GRID_BACKG_COLOUR LIGHT_GRAY
+%define GRID_LINE_COLOUR DARK_GRAY
+%define SNAKE_COLOUR GRID_LINE_COLOUR
+
 snake times MAX_SNAKE_LEN db 0,0
 snake_startidx dw 0
 snake_length dw 0
@@ -74,7 +80,7 @@ is_tile_snake:
 	
 	pop bp
 	
-	cmp al, BLACK
+	cmp al, SNAKE_COLOUR
 	je .issnake
 	
 	xor ax, ax
@@ -298,7 +304,7 @@ newpoint:
 	pop dx
 	
 	push dx
-	mov ax, CYAN
+	mov ax, POINT_COLOUR
 	push ax
 	call snake_boxcol
 	
@@ -330,7 +336,7 @@ move_snake:
 	push ax ;store before boxcol
 	
 	push ax
-	mov ax, BLACK
+	mov ax, SNAKE_COLOUR
 	push ax
 	call snake_boxcol ;colourise
 	; registers destroyed
@@ -352,7 +358,7 @@ move_snake:
 	; registers intact, result in ax
 	
 	push ax
-	mov ax, LIGHT_GRAY
+	mov ax, GRID_BACKG_COLOUR
 	push ax
 	call snake_boxcol
 	; registers destroyed
@@ -393,7 +399,7 @@ initsnake:
 	push cx
 	
 	push ax ;pos
-	mov ax, BLACK
+	mov ax, SNAKE_COLOUR
 	push ax ;colour
 	call snake_boxcol
 	; registers destroyed
@@ -417,7 +423,7 @@ initgrid:
 	push ax
 	mov ax, GRID_HEIGHT
 	push ax
-	mov ax, LIGHT_GRAY
+	mov ax, GRID_BACKG_COLOUR
 	push ax
 	call fillrect
 	
@@ -433,7 +439,7 @@ initgrid:
 	push ax
 	mov ax, GRID_HEIGHT
 	push ax
-	mov ax, DARK_GRAY
+	mov ax, GRID_LINE_COLOUR
 	push ax
 	call renderlinev
 	; registers destroyed
@@ -455,7 +461,7 @@ initgrid:
 	push cx
 	mov ax, GRID_WIDTH
 	push ax
-	mov ax, DARK_GRAY
+	mov ax, GRID_LINE_COLOUR
 	push ax
 	call renderlineh
 	; registers destroyed
@@ -470,9 +476,9 @@ initgrid:
 	push ax
 	mov ax, GRID_YOFFS
 	push ax
-	mov ax, GRID_WIDTH
+	mov ax, GRID_WIDTH+1
 	push ax
-	mov ax, CYAN
+	mov ax, BORDER_COLOUR
 	push ax
 	call renderlineh
 	
@@ -480,29 +486,29 @@ initgrid:
 	push ax
 	mov ax, GRID_YOFFS+GRID_HEIGHT
 	push ax
-	mov ax, GRID_WIDTH
+	mov ax, GRID_WIDTH+1
 	push ax
-	mov ax, CYAN
+	mov ax, BORDER_COLOUR
 	push ax
 	call renderlineh
 	
 	mov ax, GRID_XOFFS
 	push ax
-	mov ax, GRID_YOFFS
+	mov ax, GRID_YOFFS+1
 	push ax
-	mov ax, GRID_HEIGHT
+	mov ax, GRID_HEIGHT-1
 	push ax
-	mov ax, CYAN
+	mov ax, BORDER_COLOUR
 	push ax
 	call renderlinev
 	
 	mov ax, GRID_XOFFS+GRID_WIDTH
 	push ax
-	mov ax, GRID_YOFFS
+	mov ax, GRID_YOFFS+1
 	push ax
-	mov ax, GRID_HEIGHT
+	mov ax, GRID_HEIGHT-1
 	push ax
-	mov ax, CYAN
+	mov ax, BORDER_COLOUR
 	push ax
 	call renderlinev
 
