@@ -77,6 +77,7 @@ snake_endpos:
 	push bx
 	push dx
 	
+	xor dx, dx
 	mov ax, [snake_length]
 	add ax, [snake_startidx]
 	dec ax
@@ -104,6 +105,7 @@ snake_setendpos:
 	push dx
 	push ax
 	
+	xor dx, dx
 	mov ax, word [snake_length]
 	add ax, [snake_startidx]
 	dec ax
@@ -160,6 +162,46 @@ snake_boxcol:
 	pop bp
 	retn 4
 
+; Get input
+input:
+	mov ah, 0x01
+	int 0x16
+	jnz .processkey
+	retn
+.processkey:
+
+	;remove from buffer
+	mov ah, 0x00
+	int 0x16
+	
+	cmp al, 'a'
+	jne .ab
+	mov byte [dir_x], -1
+	mov byte [dir_y], 0
+	retn
+.ab:
+	
+	cmp al, 's'
+	jne .sb
+	mov byte [dir_x], 0
+	mov byte [dir_y], 1
+	retn
+.sb:
+
+	cmp al, 'd'
+	jne .db
+	mov byte [dir_x], 1
+	mov byte [dir_y], 0
+	retn
+.db:
+	
+	cmp al, 'w'
+	jne .wd
+	mov byte [dir_x], 0
+	mov byte [dir_y], -1
+.wd:
+	retn
+	
 ; Moves the snake.
 move_snake:
 	;sleep ~.5 seconds
@@ -182,41 +224,16 @@ move_snake:
 	push ax
 	
 	; change idx (move snake along) (doesn't work, halp!)
-%if 0
+	xor dx, dx
 	mov ax, [snake_startidx]
 	inc ax
 	mov bx, MAX_SNAKE_LEN
 	div bx
 	mov [snake_startidx], dx
-%elif
-	inc word [snake_startidx]
-%endif
+	
+	call input
 	
 	pop ax ;pop endpos back
-	
-%if 0
-	cmp al, NUM_XTILES-2
-	jl .skip1
-	mov byte [dir_x], 0
-	mov byte [dir_y], 1
-.skip1:
-	cmp ah, NUM_YTILES-2
-	jl .skip2
-	mov byte [dir_x], -1
-	mov byte [dir_y], 0
-.skip2:
-	cmp al, 1
-	jge .skip3
-	mov byte [dir_x], 0
-	mov byte [dir_y], -1
-.skip3:
-	cmp ah, 1
-	jge .skip4
-	mov byte [dir_x], 1
-	mov byte [dir_y], 0
-.skip4:
-%endif
-	
 	add al, [dir_x]
 	add ah, [dir_y]
 	
