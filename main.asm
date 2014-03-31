@@ -47,6 +47,43 @@ rand:
 	add ax, [rnd_b]
 	mov word [rnd_seed], ax
 	retn
+
+; Checks if given tile is snake.
+;
+; [bp + 4] is tile pos
+;
+; ax is not 0 if tile is snake
+is_tile_snake:
+	push bp
+	mov bp, sp
+	
+	mov ax, 0xa000
+	mov es, ax
+	
+	push word [bp + 4]
+	call get_tile_pix
+	
+	xchg ax, bx ;ax now has y
+	mov cx, 320
+	mul cx
+	add ax, bx ; y*320 + x
+	mov bx, ax
+	
+	xor ax, ax
+	mov al, byte [es:bx]
+	
+	pop bp
+	
+	cmp al, BLACK
+	je .issnake
+	
+	xor ax, ax
+	retn 2
+	
+.issnake:
+	
+	mov ax, 1
+	retn 2
 	
 ; Gets the snake start pos.
 ; note: leaves registers intact
@@ -121,19 +158,21 @@ snake_setnextpos:
 	pop bx
 	retn
 
-; Sets the colour of a box.
+; Gets the pixel position of a tile.
 ;
-; [bp + 6] contains the pos
-; [bp + 4] contains the colour
-snake_boxcol:
+; [bp + 4] contains the tile pos
+;
+; Returns x in ax
+; Returns y in bx
+get_tile_pix:
 	push bp
 	mov bp, sp
 	
 	xor bx, bx
 	xor cx, cx
 	
-	mov bl, byte [bp + 6] ;x
-	mov cl, byte [bp + 7] ;y
+	mov bl, byte [bp + 4] ;x
+	mov cl, byte [bp + 5] ;y
 	
 	mov ax, TILE_WIDTH
 	mul bx
@@ -147,8 +186,25 @@ snake_boxcol:
 	inc ax
 	mov cx, ax         ; cx = y*th + yoffs + 1
 	
+	mov ax, bx
+	mov bx, cx
+	
+	pop bp
+	retn 2
+
+; Sets the colour of a box.
+;
+; [bp + 6] contains the pos
+; [bp + 4] contains the colour
+snake_boxcol:
+	push bp
+	mov bp, sp
+	
+	push word [bp + 6]
+	call get_tile_pix
+	
+	push ax
 	push bx
-	push cx
 	mov ax, word TILE_WIDTH-1
 	push ax ; TILE_WIDTH-1
 	mov ax, word TILE_HEIGHT-1
@@ -211,7 +267,6 @@ input:
 	retn
 	
 newpoint:
-	
 	call rand ; ax
 	xor dx, dx
 	mov bx, NUM_YTILES
@@ -226,6 +281,21 @@ newpoint:
 	mov [pnt_x], dl
 	
 	mov dh, cl
+	
+	push dx
+	
+	push dx
+	call is_tile_snake
+	test ax, ax
+	jnz .nprepeat
+	
+	jmp .npbreak
+.nprepeat:
+	pop dx
+	jnz newpoint
+.npbreak:
+	
+	pop dx
 	
 	push dx
 	mov ax, CYAN
