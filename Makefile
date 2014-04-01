@@ -1,4 +1,4 @@
 build:
-	nasm -f bin -o prog.com entry.asm
-	dosbox ./prog.com
+	nasm -f bin -o SNAKE.COM entry.asm
+	dosbox ./SNAKE.COM
 
