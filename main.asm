@@ -103,7 +103,7 @@ exit:
 	push ax
 	mov ax, 10
 	push ax
-	mov ax, WHITE
+	mov ax, YELLOW
 	push ax
 	call renderint
 	; ax contains chars written

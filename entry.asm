@@ -23,5 +23,5 @@ terminate:
 	
 	mode dw 0
 
-%include "GFX.ASM"
-%include "MAIN.ASM"
+%include "gfx.asm"
+%include "main.asm"
