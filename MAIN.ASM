@@ -79,6 +79,11 @@ exit:
 	push ax
 	call fillrect
 	
+	mov ah, 0x86
+	xor dx, dx     ; lsw
+	mov cx, 0x0006 ; msw: little endian
+	int 0x15    ; microseconds
+	
 	mov ax, msg0 ; YOU SCORED 
 	push ax
 	mov ax, msg0len
