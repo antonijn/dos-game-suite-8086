@@ -36,6 +36,13 @@ score dw 0
 
 interval dd 0x30000
 
+msg0 db "YOU SCORED "
+msg0len equ $-msg0
+msg1 db " POINTS!"
+msg1len equ $-msg1
+msg2 db "PRESS ANY KEY TO QUIT"
+msg2len equ $-msg2
+
 main:
 	mov ah, 0x00
 	int 0x1a
@@ -60,6 +67,73 @@ rand:
 	mov word [rnd_seed], ax
 	retn
 
+exit:
+	mov ax, 0
+	push ax
+	push ax
+	mov ax, 320
+	push ax
+	mov ax, 200
+	push ax
+	mov ax, BLACK
+	push ax
+	call fillrect
+	
+	mov ax, msg0 ; YOU SCORED 
+	push ax
+	mov ax, msg0len
+	push ax
+	mov ax, 10
+	push ax
+	push ax
+	mov ax, WHITE
+	push ax
+	call renderstring
+	
+	mov ax, [score]
+	push ax
+	mov ax, 10
+	push ax
+	mov ax, 10+5*msg0len
+	push ax
+	mov ax, 10
+	push ax
+	mov ax, WHITE
+	push ax
+	call renderint
+	; ax contains chars written
+	
+	mov bx, msg1 ; POINTS!
+	push bx
+	mov bx, msg1len
+	push bx
+	mov bx, 5
+	mul bx
+	add ax, 10+5*msg0len
+	push ax
+	mov ax, 10
+	push ax
+	mov ax, WHITE
+	push ax
+	call renderstring
+	
+	mov ax, msg2 ; PRESS ANY KEY TO QUIT
+	push ax
+	mov ax, msg2len
+	push ax
+	mov ax, 10
+	push ax
+	mov ax, 17
+	push ax
+	mov ax, WHITE
+	push ax
+	call renderstring
+	
+	mov ah, 0x00
+	int 0x16 ; get key
+	
+	jmp terminate
+	
 renderscore:
 	
 	push word [score]
@@ -320,13 +394,11 @@ newpoint:
 	push dx
 	call is_tile_snake
 	test ax, ax
-	jnz .nprepeat
+	jz .break
 	
-	jmp .npbreak
-.nprepeat:
 	pop dx
 	jnz newpoint
-.npbreak:
+.break:
 	
 	pop dx
 	
@@ -382,11 +454,11 @@ move_snake:
 	push ax
 	call is_tile_snake
 	test ax, ax
-	jz .no_exit
+	jz .continue
 	
-	jmp terminate
+	jmp exit
 	
-.no_exit:
+.continue:
 	pop ax ;restore
 	push ax; save before boxcol
 	
@@ -399,9 +471,9 @@ move_snake:
 	pop ax ;restore
 	
 	cmp al, [pnt_x] ; x == pnt_x
-	jne .nepnt_y
+	jne .nepnt
 	cmp ah, [pnt_y] ; && y == pnt_y
-	jne .nepnt_y
+	jne .nepnt
 	; hit point
 	
 	cmp word [interval + 2], 0
@@ -417,9 +489,9 @@ move_snake:
 	call newpoint
 	
 	inc word [snake_length]
-	jmp .inclen
+	jmp .ret
 	
-.nepnt_y:
+.nepnt:
 	call snake_startpos
 	; registers intact, result in ax
 	
@@ -435,7 +507,7 @@ move_snake:
 	mov bx, MAX_SNAKE_LEN
 	div bx
 	mov [snake_startidx], dx
-.inclen:
+.ret:
 	retn
 	
 update:

@@ -72,6 +72,8 @@ rendertex:
 ; xoffs  8[bp]
 ; yoffs  6[bp]
 ; col    4[bp]
+;
+; Returns number of digits written in ax
 renderint:
 	push bp
 	mov bp, sp
@@ -128,7 +130,9 @@ renderint:
 	
 	jmp .renderloop
 	
-.return:
+.return: ;numDigits in cx
+	mov ax, cx
+	
 	pop bp
 	retn 10
 
@@ -279,9 +283,9 @@ renderlineh:
 	mul word [bp + 8]
 	
 	mov cx, 0 ;x
-.rlhloop:
+.loop:
 	cmp cx, [bp + 6]
-	jge .rlhbreak
+	jge .break
 	
 	mov bx, ax
 	add bx, [bp + 10]
@@ -290,10 +294,83 @@ renderlineh:
 	mov [es:bx], dl
 	
 	inc cx
-	jmp .rlhloop
-.rlhbreak:
+	jmp .loop
+.break:
 	pop bp
 	retn 8
+
+; Writes a character to the screen
+;
+; ch    10[bp]
+; xoffs  8[bp]
+; yoffs  6[bp]
+; col    4[bp]
+renderchar:
+	push bp
+	mov bp, sp
+	
+	mov ax, 2
+	mul word [bp + 10]
+	mov bx, ax
+	mov si, [texasciimap + bx] ;texamap[2*ch]
+	
+	test si, si
+	jz .ret
+	
+	mov dl, byte [bp + 4] ;little endian
+	call replcol
+	; registers intact
+	
+	mov ax, 4
+	push ax
+	mov ax, 5
+	push ax
+	push word [bp + 8]
+	push word [bp + 6]
+	push si
+	call rendertex
+	
+.ret:
+	pop bp
+	retn 8
+	
+; Writes a string to the screen
+;
+; str   12[bp]
+; len   10[bp]
+; xoffs  8[bp]
+; yoffs  6[bp]
+; col    4[bp]
+renderstring:
+	push bp
+	mov bp, sp
+	
+	xor bx, bx ;idx
+.loop:
+	cmp bx, [bp + 10]
+	jge .break
+	
+	push bx
+	
+	mov si, word [bp + 12]
+	xor ax, ax
+	mov al, byte [bx + si]
+	push ax ;arg0: char
+	mov ax, 5
+	mul bx ;5*idx
+	add ax, [bp + 8]
+	push ax ;arg1: x
+	push word [bp + 6] ;arg2: y
+	push word [bp + 4] ;arg3: col
+	call renderchar
+	
+	pop bx
+	inc bx
+	jmp .loop
+	
+.break:
+	pop bp
+	retn 10
 
 	tex0 db 0,1,1,0, 1,0,0,1, 1,0,0,1, 1,0,0,1, 0,1,1,0
 	tex1 db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0
@@ -311,5 +388,29 @@ renderlineh:
 	texD db 1,1,1,0, 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,1,1,1
 	texE db 1,1,1,1, 1,0,0,0, 1,1,1,0, 1,0,0,0, 1,1,1,1
 	texF db 1,1,1,1, 1,0,0,0, 1,1,1,0, 1,0,0,0, 1,0,0,0
+	texG db 1,1,1,1, 1,0,0,0, 1,0,0,1, 1,0,0,1, 1,1,1,1
+	texH db 1,0,0,1, 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,0,0,1
+	texI db 1,1,1,0, 0,1,0,0, 0,1,0,0, 0,1,0,0, 1,1,1,0
+	texJ db 1,1,1,0, 0,1,0,0, 0,1,0,0, 0,1,0,0, 1,1,0,0
+	texK db 1,0,0,1, 1,0,1,0, 1,1,0,0, 1,0,1,0, 1,0,0,1
+	texL db 1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0, 1,1,1,1
+	texM db 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,0,0,1
+	texN db 1,1,0,1, 1,0,1,1, 1,0,0,1, 1,0,0,1, 1,0,0,1
+	texO db 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,1,1,1
+	texP db 1,1,1,0, 1,0,0,1, 1,1,1,0, 1,0,0,0, 1,0,0,0
+	texQ db 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,0,1,1, 1,1,1,1
+	texR db 1,1,1,0, 1,0,0,1, 1,1,1,0, 1,0,1,0, 1,0,0,1
+	texS db 1,1,1,1, 1,0,0,0, 1,1,1,1, 0,0,0,1, 1,1,1,1
+	texT db 1,1,1,1, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0
+	texU db 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,0,0,1, 0,1,1,0
+	texV db 1,0,0,1, 1,0,0,1, 0,1,0,1, 0,0,1,1, 0,0,0,1
+	texW db 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,1,1,1, 1,0,0,1
+	texX db 1,0,0,1, 1,0,0,1, 0,1,1,0, 1,0,0,1, 1,0,0,1
+	texY db 1,0,0,1, 1,0,0,1, 1,1,1,1, 0,0,1,0, 0,0,1,0
+	texZ db 1,1,1,1, 0,0,0,1, 0,0,1,0, 0,1,0,0, 1,1,1,1
+	texEM db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,0,0, 0,0,1,0
 	texnummap dw tex0,tex1,tex2,tex3,tex4,tex5,tex6,tex7,tex8,tex9,texA,texB,texC,texD,texE,texF
+	texasciimap dw 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, \
+	               0,texEM,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, \
+	               0,texA,texB,texC,texD,texE,texF,texG,texH,texI,texJ,texK,texL,texM,texN,texO,texP,texQ,texR,texS,texT,texU,texV,texW,texX,texY,texZ,0,0,0,0,0,
 	
