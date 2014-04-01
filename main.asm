@@ -323,25 +323,17 @@ snake_boxcol:
 ; Get input
 input:
 	xor cx, cx
+	xor ax, ax
 
-.reproc:
-	mov ah, 0x01
-	int 0x16
-	jnz .processkey
-	
-	; if no key
-	cmp cx, 0
-	jne .handlekey ;handle if not first time
-	retn ;return if first time
-.processkey:
-	;remove from buffer
-	mov ah, 0x00
-	int 0x16
-	mov cx, 1
-	; keep going until buffer is empty
-	jmp .reproc
+	mov ah, 01h
+	int 16h
+
+	jz .wd ; If there is no key then skip to the end
+        
+	mov ah, 00h
+	int 16h
+
 .handlekey:
-	
 	cmp byte [dir_x], 1
 	je .ab
 	cmp al, 'a'
