@@ -1,4 +1,4 @@
 build:
-	nasm -f bin -o SNAKE.COM entry.asm
+	nasm -f bin -o SNAKE.COM ENTRY.ASM
 	dosbox ./SNAKE.COM
 
