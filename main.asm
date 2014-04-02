@@ -65,7 +65,25 @@ rand:
 	mov word [rnd_seed], ax
 	retn
 
+clearkbbuf:
+	xor cx, cx
+	xor ax, ax
+
+	mov ah, 0x01
+	int 0x16
+
+	jz .return ; no key, exit
+        
+	mov ah, 0x00
+	int 0x16
+	
+	jmp clearkbbuf
+.return:
+	retn
+	
 exit:
+	call clearkbbuf
+	
 	mov ax, 0
 	push ax
 	push ax
@@ -81,6 +99,8 @@ exit:
 	xor dx, dx     ; lsw
 	mov cx, 0x0006 ; msw: little endian
 	int 0x15    ; microseconds
+	
+	call clearkbbuf
 	
 	mov ax, msg0 ; YOU SCORED 
 	push ax
