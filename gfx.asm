@@ -1,19 +1,19 @@
-%define BLACK 0x0
-%define BLUE 0x1
-%define GREEN 0x2
-%define CYAN 0x3
-%define RED 0x4
-%define MAGENTA 0x5
-%define BROWN 0x6
-%define LIGHT_GRAY 0x7
-%define DARK_GRAY 0x8
-%define LIGHT_BLUE 0x9
-%define LIGHT_GREEN 0xa
-%define LIGHT_CYAN 0xb
-%define LIGHT_RED 0xc
-%define LIGHT_MAGENTA 0xd
-%define YELLOW 0xe
-%define WHITE 0xf
+BLACK equ 0x0
+BLUE equ 0x1
+GREEN equ 0x2
+CYAN equ 0x3
+RED equ 0x4
+MAGENTA equ 0x5
+BROWN equ 0x6
+LIGHT_GRAY equ 0x7
+DARK_GRAY equ 0x8
+LIGHT_BLUE equ 0x9
+LIGHT_GREEN equ 0xa
+LIGHT_CYAN equ 0xb
+LIGHT_RED equ 0xc
+LIGHT_MAGENTA equ 0xd
+YELLOW equ 0xe
+WHITE equ 0xf
 
 ; Blits a texture onto the screen
 ;
@@ -32,13 +32,13 @@ rendertex:
 	mov cx, 0 ; cx = y
 .jmpY:
 	cmp cx, [bp + 10]
-	jge .breakY
+	jae .breakY
 	
 	mov di, 0 ; di = x
 .jmpX:
 	mov ax, [bp + 12]
 	cmp di, ax
-	jge .breakX
+	jae .breakX
 	
 	mul cx
 	add ax, di        ; (y * width) + x
@@ -106,7 +106,7 @@ renderint:
 	pop di ;numDigit
 	pop cx ;numDigits
 	cmp di, cx
-	jge .return
+	jae .return
 	
 	pop bx ;pop the previously pushed remainder (digit) (first arg)
 	
@@ -149,7 +149,7 @@ replcol:
 
 	inc bx
 	cmp bx, 20 ;4*5
-	jge .breakcolloop
+	jae .breakcolloop
 	cmp [si + bx], byte 0
 	je .rcolloop
 	mov [si + bx], dl
@@ -207,12 +207,12 @@ fillrect:
 	mov cx, 0 ;y
 .jmpY1:
 	cmp cx, [bp + 6]
-	jge .breakY1
+	jae .breakY1
 
 	mov bx, 0 ;x
 .jmpX1:
 	cmp bx, [bp + 8]
-	jge .breakX1
+	jae .breakX1
 	
 	mov ax, cx
 	add ax, [bp + 10]
@@ -249,7 +249,7 @@ renderlinev:
 	mov cx, 0 ;y
 .rlvloop:
 	cmp cx, [bp + 6]
-	jge .rlvbreak
+	jae .rlvbreak
 	
 	mov ax, 320
 	mov dx, [bp + 8]
@@ -285,7 +285,7 @@ renderlineh:
 	mov cx, 0 ;x
 .loop:
 	cmp cx, [bp + 6]
-	jge .break
+	jae .break
 	
 	mov bx, ax
 	add bx, [bp + 10]
@@ -348,7 +348,7 @@ renderstring:
 	xor bx, bx ;idx
 .loop:
 	cmp bx, [bp + 10]
-	jge .break
+	jae .break
 	
 	push bx
 	

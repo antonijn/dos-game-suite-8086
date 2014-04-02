@@ -25,6 +25,8 @@ pnt_y db 0
 
 dir_x db 1
 dir_y db 0
+dir_prev_x db 1
+dir_prev_y db 0
 
 rnd_seed dw 1
 rnd_a dw 5555
@@ -352,7 +354,7 @@ input:
 	int 0x16
 
 .handlekey:
-	cmp byte [dir_x], 1
+	cmp byte [dir_prev_x], 1
 	je .ab
 	cmp al, 'a'
 	jne .ab
@@ -361,7 +363,7 @@ input:
 	jmp input
 .ab:
 	
-	cmp byte [dir_y], -1
+	cmp byte [dir_prev_y], -1
 	je .sb
 	cmp al, 's'
 	jne .sb
@@ -370,7 +372,7 @@ input:
 	jmp input
 .sb:
 
-	cmp byte [dir_x], -1
+	cmp byte [dir_prev_x], -1
 	je .db
 	cmp al, 'd'
 	jne .db
@@ -379,7 +381,7 @@ input:
 	jmp input
 .db:
 	
-	cmp byte [dir_y], 1
+	cmp byte [dir_prev_y], 1
 	je .wd
 	cmp al, 'w'
 	jne .wd
@@ -441,6 +443,10 @@ move_snake:
 	
 	push ax
 	
+	mov al, [dir_x]
+	mov [dir_prev_x], al
+	mov al, [dir_y]
+	mov [dir_prev_y], al
 	call input
 	
 	pop ax ;pop endpos back
@@ -540,7 +546,7 @@ initsnake:
 	xor cx, cx
 .isloop:
 	cmp cx, START_SNAKE_LEN
-	jge .isbreak
+	jae .isbreak
 	
 	mov ax, 2
 	mul cx     ; snake[2 * i]
@@ -587,7 +593,7 @@ initgrid:
 	mov cx, GRID_XOFFS
 .gridxloop:
 	cmp cx, GRID_WIDTH+GRID_XOFFS
-	jge .gridxbreak
+	jae .gridxbreak
 	
 	push cx
 	push cx
@@ -609,7 +615,7 @@ initgrid:
 	mov cx, GRID_YOFFS
 .gridyloop:
 	cmp cx, GRID_HEIGHT+GRID_YOFFS
-	jge .gridybreak
+	jae .gridybreak
 	
 	push cx
 	mov ax, GRID_XOFFS
