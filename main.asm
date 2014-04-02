@@ -323,13 +323,13 @@ input:
 	xor cx, cx
 	xor ax, ax
 
-	mov ah, 01h
-	int 16h
+	mov ah, 0x01
+	int 0x16
 
-	jz .wd ; If there is no key then skip to the end
+	jz .return ; no key, exit
         
-	mov ah, 00h
-	int 16h
+	mov ah, 0x00
+	int 0x16
 
 .handlekey:
 	cmp byte [dir_x], 1
@@ -338,7 +338,7 @@ input:
 	jne .ab
 	mov byte [dir_x], -1
 	mov byte [dir_y], 0
-	retn
+	jmp input
 .ab:
 	
 	cmp byte [dir_y], -1
@@ -347,7 +347,7 @@ input:
 	jne .sb
 	mov byte [dir_x], 0
 	mov byte [dir_y], 1
-	retn
+	jmp input
 .sb:
 
 	cmp byte [dir_x], -1
@@ -356,7 +356,7 @@ input:
 	jne .db
 	mov byte [dir_x], 1
 	mov byte [dir_y], 0
-	retn
+	jmp input
 .db:
 	
 	cmp byte [dir_y], 1
@@ -366,6 +366,9 @@ input:
 	mov byte [dir_x], 0
 	mov byte [dir_y], -1
 .wd:
+	jmp input
+
+.return:
 	retn
 	
 newpoint:
