@@ -88,8 +88,8 @@ renderint:
 	inc cx
 	
 .calcloop:
-	cmp ax, 0
-	je .leave         ; if (!i) break
+	test ax, ax
+	jz .leave         ; if (!i) break
 	
 	xor dx,dx
 	div word [bp + 10] ; i /= base, dx has remainder
@@ -150,7 +150,7 @@ replcol:
 	inc bx
 	cmp bx, 20 ;4*5
 	jae .breakcolloop
-	cmp [si + bx], byte 0
+	cmp byte [si + bx], 0
 	je .rcolloop
 	mov [si + bx], dl
 	jmp .rcolloop	
@@ -409,8 +409,11 @@ renderstring:
 	texY db 1,0,0,1, 1,0,0,1, 1,1,1,1, 0,0,1,0, 0,0,1,0
 	texZ db 1,1,1,1, 0,0,0,1, 0,0,1,0, 0,1,0,0, 1,1,1,1
 	texEM db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,0,0, 0,0,1,0
-	texnummap dw tex0,tex1,tex2,tex3,tex4,tex5,tex6,tex7,tex8,tex9,texA,texB,texC,texD,texE,texF
-	texasciimap dw 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, \
-	               0,texEM,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0, \
-	               0,texA,texB,texC,texD,texE,texF,texG,texH,texI,texJ,texK,texL,texM,texN,texO,texP,texQ,texR,texS,texT,texU,texV,texW,texX,texY,texZ,0,0,0,0,0,
+	texnummap dw tex0,tex1,tex2,tex3,tex4,tex5,tex6,tex7,tex8,tex9,texA,texB,\
+	             texC,texD,texE,texF
+	texasciimap dw 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\
+	               0,0,0,texEM,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\
+	               0,0,0,0,0,0,0,texA,texB,texC,texD,texE,texF,texG,texH,texI,\
+	               texJ,texK,texL,texM,texN,texO,texP,texQ,texR,texS,texT,texU,\
+	               texV,texW,texX,texY,texZ,0,0,0,0,0,
 	
