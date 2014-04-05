@@ -6,7 +6,7 @@ GRID_XOFFS  equ 10
 GRID_YOFFS  equ 25
 NUM_XTILES equ GRID_WIDTH/TILE_WIDTH
 NUM_YTILES equ GRID_HEIGHT/TILE_HEIGHT
-MAX_SNAKE_LEN equ 100
+MAX_SNAKE_LEN equ 0x80
 START_SNAKE_LEN equ 5
 ACCELERATION equ 2000
 
@@ -16,21 +16,21 @@ GRID_BACKG_COLOUR equ LIGHT_GRAY
 GRID_LINE_COLOUR equ DARK_GRAY
 SNAKE_COLOUR equ GREEN
 
-snake times MAX_SNAKE_LEN db 0,0
+snake resb 2*MAX_SNAKE_LEN
 snake_startidx dw 0
 snake_length dw 0
 
-pnt_x db 0
-pnt_y db 0
+pnt_x resb 1
+pnt_y resb 1
 
 dir_x db 1
 dir_y db 0
 dir_prev_x db 1
 dir_prev_y db 0
 
-rnd_seed dw 1
-rnd_a dw 5555
-rnd_b dw 444
+rnd_seed resw 1
+RND_A equ 5555
+RND_B equ 444
 
 score dw 0
 
@@ -53,18 +53,16 @@ main:
 	call initsnake
 	call newpoint
 	
-.gameloop:
 	call update
-	jmp .gameloop
 
 ; Gets a random number
 ;
 ; Returns in ax
 rand:
-	mov ax, [rnd_a]
+	mov ax, RND_A
 	mul word [rnd_seed]
-	add ax, [rnd_b]
-	mov word [rnd_seed], ax
+	add ax, RND_B
+	mov [rnd_seed], ax
 	ret
 
 clearkbbuf:
@@ -84,8 +82,6 @@ clearkbbuf:
 	ret
 	
 exit:
-	call clearkbbuf
-	
 	mov ax, 0
 	push ax
 	push ax
@@ -101,8 +97,6 @@ exit:
 	xor dx, dx     ; lsw
 	mov cx, 0x0006 ; msw: little endian
 	int 0x15    ; microseconds
-	
-	call clearkbbuf
 	
 	mov ax, msg0 ; YOU SCORED 
 	push ax
@@ -154,6 +148,8 @@ exit:
 	push ax
 	call renderstring
 	
+	call clearkbbuf
+	
 	mov ah, 0x00
 	int 0x16 ; get key
 	
@@ -194,7 +190,7 @@ is_tile_snake:
 	mov bx, ax
 	
 	xor ax, ax
-	mov al, byte [es:bx]
+	mov al, [es:bx]
 	
 	pop bp
 	
@@ -240,7 +236,7 @@ snake_endpos:
 	mov ax, [snake_length]
 	add ax, [snake_startidx]
 	dec ax
-	mov bx, word MAX_SNAKE_LEN
+	mov bx, MAX_SNAKE_LEN
 	div bx
 	;mov dx, ax
 	
@@ -265,10 +261,10 @@ snake_setnextpos:
 	push ax
 	
 	xor dx, dx
-	mov ax, word [snake_length]
+	mov ax, [snake_length]
 	add ax, [snake_startidx]
 	;dec ax
-	mov bx, word MAX_SNAKE_LEN
+	mov bx, MAX_SNAKE_LEN
 	div bx
 	
 	mov ax, 2
@@ -295,8 +291,8 @@ get_tile_pix:
 	xor bx, bx
 	xor cx, cx
 	
-	mov bl, byte [bp + 4] ;x
-	mov cl, byte [bp + 5] ;y
+	mov bl, [bp + 4] ;x
+	mov cl, [bp + 5] ;y
 	
 	mov ax, TILE_WIDTH
 	mul bx
@@ -329,11 +325,11 @@ snake_boxcol:
 	
 	push ax
 	push bx
-	mov ax, word TILE_WIDTH-1
+	mov ax, TILE_WIDTH-1
 	push ax ; TILE_WIDTH-1
-	mov ax, word TILE_HEIGHT-1
+	mov ax, TILE_HEIGHT-1
 	push ax ; TILE_HEIGHT-1
-	mov ax, word [bp + 4]
+	mov ax, [bp + 4]
 	push ax
 	call fillrect
 	
@@ -348,15 +344,16 @@ input:
 	mov ah, 0x01
 	int 0x16
 
-	jz .return ; no key, exit
-        
-	mov ah, 0x00
+	jnz .handlekey ; no key, exit
+    ret
+    
+.handlekey:
+    mov ah, 0x00
 	int 0x16
 
-.handlekey:
 	cmp byte [dir_prev_x], 1
 	je .ab
-	cmp al, 'a'
+	cmp ah, 0x4b ; left arrow scan code
 	jne .ab
 	mov byte [dir_x], -1
 	mov byte [dir_y], 0
@@ -365,7 +362,7 @@ input:
 	
 	cmp byte [dir_prev_y], -1
 	je .sb
-	cmp al, 's'
+	cmp ah, 0x50 ; down arrow scan code
 	jne .sb
 	mov byte [dir_x], 0
 	mov byte [dir_y], 1
@@ -374,7 +371,7 @@ input:
 
 	cmp byte [dir_prev_x], -1
 	je .db
-	cmp al, 'd'
+	cmp ah, 0x4d ; right arrow scan code
 	jne .db
 	mov byte [dir_x], 1
 	mov byte [dir_y], 0
@@ -382,16 +379,12 @@ input:
 .db:
 	
 	cmp byte [dir_prev_y], 1
-	je .wd
-	cmp al, 'w'
-	jne .wd
+	je input ;repeat
+	cmp ah, 0x48 ; up arrow scan code
+	jne input ;repeat
 	mov byte [dir_x], 0
 	mov byte [dir_y], -1
-.wd:
-	jmp input
-
-.return:
-	ret
+	jmp input ;repeat
 	
 newpoint:
 	call rand ; ax
@@ -430,12 +423,12 @@ newpoint:
 	ret
 	
 ; Moves the snake.
-move_snake:
+update:
 
 	;sleep ~.5 seconds
 	mov ah, 0x86
-	mov dx, word [interval]     ; lsw
-	mov cx, word [interval + 2] ; msw: little endian
+	mov dx, [interval]     ; lsw
+	mov cx, [interval + 2] ; msw: little endian
 	int 0x15    ; microseconds
 	
 	call snake_endpos ;get end pos
@@ -513,7 +506,7 @@ move_snake:
 	call newpoint
 	
 	inc word [snake_length]
-	jmp .ret
+	jmp update
 	
 .nepnt:
 	call snake_startpos
@@ -531,23 +524,18 @@ move_snake:
 	mov bx, MAX_SNAKE_LEN
 	div bx
 	mov [snake_startidx], dx
-.ret:
-	ret
 	
-update:
-	
-	; tail call for now, 'cause why the hell not
-	jmp move_snake
-	
-	;ret
+	jmp update
 	
 initsnake:
 	
 	xor cx, cx
-.isloop:
+.loop:
 	cmp cx, START_SNAKE_LEN
-	jae .isbreak
+	jb .continue
+	ret
 	
+.continue:
 	mov ax, 2
 	mul cx     ; snake[2 * i]
 	mov bx, ax
@@ -570,9 +558,7 @@ initsnake:
 	
 	pop cx
 	inc cx
-	jmp .isloop
-.isbreak:
-	ret
+	jmp .loop
 	
 initgrid:
 	
@@ -591,9 +577,9 @@ initgrid:
 	
 	; grid vertical stripes
 	mov cx, GRID_XOFFS
-.gridxloop:
+.xloop:
 	cmp cx, GRID_WIDTH+GRID_XOFFS
-	jae .gridxbreak
+	jae .xbreak
 	
 	push cx
 	push cx
@@ -608,14 +594,14 @@ initgrid:
 	pop cx
 	
 	add cx, TILE_WIDTH
-	jmp .gridxloop
-.gridxbreak:
+	jmp .xloop
+.xbreak:
 
 	; grid horizontal stripes
 	mov cx, GRID_YOFFS
-.gridyloop:
+.yloop:
 	cmp cx, GRID_HEIGHT+GRID_YOFFS
-	jae .gridybreak
+	jae .ybreak
 	
 	push cx
 	mov ax, GRID_XOFFS
@@ -630,8 +616,8 @@ initgrid:
 	pop cx
 	
 	add cx, TILE_HEIGHT
-	jmp .gridyloop
-.gridybreak:
+	jmp .yloop
+.ybreak:
 
 	; grid outline
 	mov ax, GRID_XOFFS

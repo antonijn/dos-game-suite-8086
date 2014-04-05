@@ -21,7 +21,7 @@ terminate:
 	mov ah, 0x4c
 	int 0x21 ; exit
 	
-	mode dw 0
+	mode resw 1
 
 %include "gfx.asm"
 %include "main.asm"

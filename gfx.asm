@@ -254,7 +254,7 @@ renderlinev:
 	mov ax, 320
 	mov dx, [bp + 8]
 	add dx, cx        ; yoffs + y
-	mul dx           ; ^ * 320
+	mul dx            ; ^ * 320
 	mov bx, [bp + 10] ; xoffs
 	add bx, ax        ; + xoffs
 	mov al, [bp + 4]  ; col
