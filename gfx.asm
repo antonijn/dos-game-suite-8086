@@ -63,7 +63,7 @@ rendertex:
 .breakY:
 	
 	pop bp
-	retn 10
+	ret 10
 
 ; Writes an int to the screen
 ;
@@ -134,7 +134,7 @@ renderint:
 	mov ax, cx
 	
 	pop bp
-	retn 10
+	ret 10
 
 ; Replaces non-zero colours from tex with dl
 ; note: leaves registers intact
@@ -157,7 +157,7 @@ replcol:
 .breakcolloop:
 
 	pop bx
-	retn
+	ret
 	
 ; Write digit to the screen
 ;
@@ -188,7 +188,7 @@ renderdigit:
 	call rendertex
 	
 	pop bp
-	retn 8
+	ret 8
 	
 ; Fills a rectangle with a colour.
 ;
@@ -231,7 +231,7 @@ fillrect:
 	jmp .jmpY1
 .breakY1:
 	pop bp
-	retn 10
+	ret 10
 
 ; Render a vertical line.
 ;
@@ -264,7 +264,7 @@ renderlinev:
 	jmp .rlvloop
 .rlvbreak:
 	pop bp
-	retn 8
+	ret 8
 
 ; Render a horizontal line.
 ;
@@ -297,7 +297,7 @@ renderlineh:
 	jmp .loop
 .break:
 	pop bp
-	retn 8
+	ret 8
 
 ; Writes a character to the screen
 ;
@@ -332,7 +332,7 @@ renderchar:
 	
 .ret:
 	pop bp
-	retn 8
+	ret 8
 	
 ; Writes a string to the screen
 ;
@@ -370,7 +370,7 @@ renderstring:
 	
 .break:
 	pop bp
-	retn 10
+	ret 10
 
 	tex0 db 0,1,1,0, 1,0,0,1, 1,0,0,1, 1,0,0,1, 0,1,1,0
 	tex1 db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0

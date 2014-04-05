@@ -65,7 +65,7 @@ rand:
 	mul word [rnd_seed]
 	add ax, [rnd_b]
 	mov word [rnd_seed], ax
-	retn
+	ret
 
 clearkbbuf:
 	xor cx, cx
@@ -81,7 +81,7 @@ clearkbbuf:
 	
 	jmp clearkbbuf
 .return:
-	retn
+	ret
 	
 exit:
 	call clearkbbuf
@@ -170,7 +170,7 @@ renderscore:
 	push ax
 	call renderint
 	
-	retn
+	ret
 	
 ; Checks if given tile is snake.
 ;
@@ -202,12 +202,12 @@ is_tile_snake:
 	je .issnake
 	
 	xor ax, ax
-	retn 2
+	ret 2
 	
 .issnake:
 	
 	mov ax, 1
-	retn 2
+	ret 2
 	
 ; Gets the snake start pos.
 ; note: leaves registers intact
@@ -225,7 +225,7 @@ snake_startpos:
 	
 	pop dx
 	pop bx
-	retn
+	ret
 
 ; Gets the snake end pos.
 ; note: leaves registers intact
@@ -252,7 +252,7 @@ snake_endpos:
 	
 	pop dx
 	pop bx
-	retn
+	ret
 
 ; Sets the snake end pos.
 ; note: leaves registers intact
@@ -280,7 +280,7 @@ snake_setnextpos:
 	
 	pop dx
 	pop bx
-	retn
+	ret
 
 ; Gets the pixel position of a tile.
 ;
@@ -314,7 +314,7 @@ get_tile_pix:
 	mov bx, cx
 	
 	pop bp
-	retn 2
+	ret 2
 
 ; Sets the colour of a box.
 ;
@@ -338,7 +338,7 @@ snake_boxcol:
 	call fillrect
 	
 	pop bp
-	retn 4
+	ret 4
 
 ; Get input
 input:
@@ -391,7 +391,7 @@ input:
 	jmp input
 
 .return:
-	retn
+	ret
 	
 newpoint:
 	call rand ; ax
@@ -427,7 +427,7 @@ newpoint:
 	push ax
 	call snake_boxcol
 	
-	retn
+	ret
 	
 ; Moves the snake.
 move_snake:
@@ -532,14 +532,14 @@ move_snake:
 	div bx
 	mov [snake_startidx], dx
 .ret:
-	retn
+	ret
 	
 update:
 	
 	; tail call for now, 'cause why the hell not
 	jmp move_snake
 	
-	;retn
+	;ret
 	
 initsnake:
 	
@@ -572,7 +572,7 @@ initsnake:
 	inc cx
 	jmp .isloop
 .isbreak:
-	retn
+	ret
 	
 initgrid:
 	
@@ -674,4 +674,4 @@ initgrid:
 	push ax
 	call renderlinev
 
-	retn
+	ret
