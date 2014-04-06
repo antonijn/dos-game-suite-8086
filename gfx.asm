@@ -1,19 +1,21 @@
-BLACK equ 0x0
-BLUE equ 0x1
-GREEN equ 0x2
-CYAN equ 0x3
-RED equ 0x4
-MAGENTA equ 0x5
-BROWN equ 0x6
-LIGHT_GRAY equ 0x7
-DARK_GRAY equ 0x8
-LIGHT_BLUE equ 0x9
-LIGHT_GREEN equ 0xa
-LIGHT_CYAN equ 0xb
-LIGHT_RED equ 0xc
-LIGHT_MAGENTA equ 0xd
-YELLOW equ 0xe
-WHITE equ 0xf
+BLACK: equ 0x0
+BLUE: equ 0x1
+GREEN: equ 0x2
+CYAN: equ 0x3
+RED: equ 0x4
+MAGENTA: equ 0x5
+BROWN: equ 0x6
+LIGHT_GRAY: equ 0x7
+DARK_GRAY: equ 0x8
+LIGHT_BLUE: equ 0x9
+LIGHT_GREEN: equ 0xa
+LIGHT_CYAN: equ 0xb
+LIGHT_RED: equ 0xc
+LIGHT_MAGENTA: equ 0xd
+YELLOW: equ 0xe
+WHITE: equ 0xf
+
+section .text
 
 ; Blits a texture onto the screen
 ;
@@ -29,12 +31,14 @@ rendertex:
 	mov ax, 0xa000
 	mov es, ax
 	
-	mov cx, 0 ; cx = y
+	xor cx, cx ; cx = y
+	
 .jmpY:
 	cmp cx, [bp + 10]
 	jae .breakY
 	
-	mov di, 0 ; di = x
+	xor di, di ; di = x
+	
 .jmpX:
 	mov ax, [bp + 12]
 	cmp di, ax
@@ -57,11 +61,12 @@ rendertex:
 	
 	inc di
 	jmp .jmpX
+	
 .breakX:
 	inc cx
 	jmp .jmpY
+
 .breakY:
-	
 	pop bp
 	ret 10
 
@@ -78,7 +83,7 @@ renderint:
 	push bp
 	mov bp, sp
 	
-	mov cx, 0
+	xor cx, cx
 	mov ax, [bp + 12]
 	test ax, ax
 	jnz .calcloop
@@ -89,20 +94,21 @@ renderint:
 	
 .calcloop:
 	test ax, ax
-	jz .leave         ; if (!i) break
+	jz .calcleave   ; if (!i) break
 	
 	xor dx,dx
 	div word [bp + 10] ; i /= base, dx has remainder
 	push dx ; store rem on stack
 	inc cx ; inc digit count
 	jmp .calcloop
-.leave:
+
+.calcleave:
 	push cx     ;numDigits
 	xor ax, ax
 	push ax     ;numDigit
+
 .renderloop:
 	;render digits in reverse order
-	
 	pop di ;numDigit
 	pop cx ;numDigits
 	cmp di, cx
@@ -145,17 +151,17 @@ replcol:
 	push bx
 	
 	mov bx, -1
-.rcolloop:
 
+.loop:
 	inc bx
 	cmp bx, 20 ;4*5
-	jae .breakcolloop
+	jae .break
 	cmp byte [si + bx], 0
-	je .rcolloop
+	je .loop
 	mov [si + bx], dl
-	jmp .rcolloop	
-.breakcolloop:
+	jmp .loop	
 
+.break:
 	pop bx
 	ret
 	
@@ -204,15 +210,17 @@ fillrect:
 	mov ax, 0xa000
 	mov es, ax
 	
-	mov cx, 0 ;y
-.jmpY1:
+	xor cx, cx ;y
+	
+.jmpY:
 	cmp cx, [bp + 6]
-	jae .breakY1
+	jae .breakY
 
-	mov bx, 0 ;x
-.jmpX1:
+	xor bx, bx ;x
+	
+.jmpX:
 	cmp bx, [bp + 8]
-	jae .breakX1
+	jae .breakX
 	
 	mov ax, cx
 	add ax, [bp + 10]
@@ -225,11 +233,13 @@ fillrect:
 	mov [es:di], al
 	
 	inc bx
-	jmp .jmpX1
-.breakX1:
+	jmp .jmpX
+	
+.breakX:
 	inc cx
-	jmp .jmpY1
-.breakY1:
+	jmp .jmpY
+	
+.breakY:
 	pop bp
 	ret 10
 
@@ -246,10 +256,11 @@ renderlinev:
 	mov ax, 0xa000
 	mov es, ax
 	
-	mov cx, 0 ;y
-.rlvloop:
+	xor cx, cx ;y
+	
+.loop:
 	cmp cx, [bp + 6]
-	jae .rlvbreak
+	jae .break
 	
 	mov ax, 320
 	mov dx, [bp + 8]
@@ -261,8 +272,9 @@ renderlinev:
 	mov [es:bx], al
 	
 	inc cx
-	jmp .rlvloop
-.rlvbreak:
+	jmp .loop
+	
+.break:
 	pop bp
 	ret 8
 
@@ -282,7 +294,8 @@ renderlineh:
 	mov ax, 320
 	mul word [bp + 8]
 	
-	mov cx, 0 ;x
+	xor cx, cx ;x
+	
 .loop:
 	cmp cx, [bp + 6]
 	jae .break
@@ -295,6 +308,7 @@ renderlineh:
 	
 	inc cx
 	jmp .loop
+	
 .break:
 	pop bp
 	ret 8
@@ -346,6 +360,7 @@ renderstring:
 	mov bp, sp
 	
 	xor bx, bx ;idx
+	
 .loop:
 	cmp bx, [bp + 10]
 	jae .break
@@ -372,48 +387,51 @@ renderstring:
 	pop bp
 	ret 10
 
-	tex0 db 0,1,1,0, 1,0,0,1, 1,0,0,1, 1,0,0,1, 0,1,1,0
-	tex1 db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0
-	tex2 db 0,1,1,0, 1,0,0,1, 0,0,1,0, 0,1,0,0, 1,1,1,1
-	tex3 db 1,1,1,0, 0,0,0,1, 0,1,1,0, 0,0,0,1, 1,1,1,0
-	tex4 db 1,0,0,1, 1,0,0,1, 1,1,1,1, 0,0,0,1, 0,0,0,1
-	tex5 db 1,1,1,1, 1,0,0,0, 1,1,1,0, 0,0,0,1, 1,1,1,0
-	tex6 db 0,1,1,1, 1,0,0,0, 1,1,1,1, 1,0,0,1, 1,1,1,1
-	tex7 db 1,1,1,1, 0,0,0,1, 0,0,1,0, 0,1,0,0, 1,0,0,0
-	tex8 db 0,1,1,0, 1,0,0,1, 0,1,1,0, 1,0,0,1, 0,1,1,0
-	tex9 db 1,1,1,1, 1,0,0,1, 1,1,1,1, 0,0,0,1, 1,1,1,0
-	texA db 0,1,1,0, 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,0,0,1
-	texB db 1,1,1,0, 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,1,1,1
-	texC db 0,1,1,1, 1,0,0,0, 1,0,0,0, 1,0,0,0, 0,1,1,1
-	texD db 1,1,1,0, 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,1,1,1
-	texE db 1,1,1,1, 1,0,0,0, 1,1,1,0, 1,0,0,0, 1,1,1,1
-	texF db 1,1,1,1, 1,0,0,0, 1,1,1,0, 1,0,0,0, 1,0,0,0
-	texG db 1,1,1,1, 1,0,0,0, 1,0,0,1, 1,0,0,1, 1,1,1,1
-	texH db 1,0,0,1, 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,0,0,1
-	texI db 1,1,1,0, 0,1,0,0, 0,1,0,0, 0,1,0,0, 1,1,1,0
-	texJ db 1,1,1,0, 0,1,0,0, 0,1,0,0, 0,1,0,0, 1,1,0,0
-	texK db 1,0,0,1, 1,0,1,0, 1,1,0,0, 1,0,1,0, 1,0,0,1
-	texL db 1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0, 1,1,1,1
-	texM db 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,0,0,1
-	texN db 1,1,0,1, 1,0,1,1, 1,0,0,1, 1,0,0,1, 1,0,0,1
-	texO db 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,1,1,1
-	texP db 1,1,1,0, 1,0,0,1, 1,1,1,0, 1,0,0,0, 1,0,0,0
-	texQ db 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,0,1,1, 1,1,1,1
-	texR db 1,1,1,0, 1,0,0,1, 1,1,1,0, 1,0,1,0, 1,0,0,1
-	texS db 1,1,1,1, 1,0,0,0, 1,1,1,1, 0,0,0,1, 1,1,1,1
-	texT db 1,1,1,1, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0
-	texU db 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,0,0,1, 0,1,1,0
-	texV db 1,0,0,1, 1,0,0,1, 0,1,0,1, 0,0,1,1, 0,0,0,1
-	texW db 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,1,1,1, 1,0,0,1
-	texX db 1,0,0,1, 1,0,0,1, 0,1,1,0, 1,0,0,1, 1,0,0,1
-	texY db 1,0,0,1, 1,0,0,1, 1,1,1,1, 0,0,1,0, 0,0,1,0
-	texZ db 1,1,1,1, 0,0,0,1, 0,0,1,0, 0,1,0,0, 1,1,1,1
-	texEM db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,0,0, 0,0,1,0
-	texnummap dw tex0,tex1,tex2,tex3,tex4,tex5,tex6,tex7,tex8,tex9,texA,texB,\
-	             texC,texD,texE,texF
-	texasciimap dw 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\
-	               0,0,0,texEM,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\
-	               0,0,0,0,0,0,0,texA,texB,texC,texD,texE,texF,texG,texH,texI,\
-	               texJ,texK,texL,texM,texN,texO,texP,texQ,texR,texS,texT,texU,\
-	               texV,texW,texX,texY,texZ,0,0,0,0,0,
-	
+section .data
+	tex0: db 0,1,1,0, 1,0,0,1, 1,0,0,1, 1,0,0,1, 0,1,1,0
+	tex1: db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0
+	tex2: db 0,1,1,0, 1,0,0,1, 0,0,1,0, 0,1,0,0, 1,1,1,1
+	tex3: db 1,1,1,0, 0,0,0,1, 0,1,1,0, 0,0,0,1, 1,1,1,0
+	tex4: db 1,0,0,1, 1,0,0,1, 1,1,1,1, 0,0,0,1, 0,0,0,1
+	tex5: db 1,1,1,1, 1,0,0,0, 1,1,1,0, 0,0,0,1, 1,1,1,0
+	tex6: db 0,1,1,1, 1,0,0,0, 1,1,1,1, 1,0,0,1, 1,1,1,1
+	tex7: db 1,1,1,1, 0,0,0,1, 0,0,1,0, 0,1,0,0, 1,0,0,0
+	tex8: db 0,1,1,0, 1,0,0,1, 0,1,1,0, 1,0,0,1, 0,1,1,0
+	tex9: db 1,1,1,1, 1,0,0,1, 1,1,1,1, 0,0,0,1, 1,1,1,0
+	texA: db 0,1,1,0, 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,0,0,1
+	texB: db 1,1,1,0, 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,1,1,1
+	texC: db 0,1,1,1, 1,0,0,0, 1,0,0,0, 1,0,0,0, 0,1,1,1
+	texD: db 1,1,1,0, 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,1,1,1
+	texE: db 1,1,1,1, 1,0,0,0, 1,1,1,0, 1,0,0,0, 1,1,1,1
+	texF: db 1,1,1,1, 1,0,0,0, 1,1,1,0, 1,0,0,0, 1,0,0,0
+	texG: db 1,1,1,1, 1,0,0,0, 1,0,0,1, 1,0,0,1, 1,1,1,1
+	texH: db 1,0,0,1, 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,0,0,1
+	texI: db 1,1,1,0, 0,1,0,0, 0,1,0,0, 0,1,0,0, 1,1,1,0
+	texJ: db 1,1,1,0, 0,1,0,0, 0,1,0,0, 0,1,0,0, 1,1,0,0
+	texK: db 1,0,0,1, 1,0,1,0, 1,1,0,0, 1,0,1,0, 1,0,0,1
+	texL: db 1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0, 1,1,1,1
+	texM: db 1,0,0,1, 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,0,0,1
+	texN: db 1,1,0,1, 1,0,1,1, 1,0,0,1, 1,0,0,1, 1,0,0,1
+	texO: db 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,1,1,1
+	texP: db 1,1,1,0, 1,0,0,1, 1,1,1,0, 1,0,0,0, 1,0,0,0
+	texQ: db 1,1,1,1, 1,0,0,1, 1,0,0,1, 1,0,1,1, 1,1,1,1
+	texR: db 1,1,1,0, 1,0,0,1, 1,1,1,0, 1,0,1,0, 1,0,0,1
+	texS: db 1,1,1,1, 1,0,0,0, 1,1,1,1, 0,0,0,1, 1,1,1,1
+	texT: db 1,1,1,1, 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,1,0
+	texU: db 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,0,0,1, 0,1,1,0
+	texV: db 1,0,0,1, 1,0,0,1, 0,1,0,1, 0,0,1,1, 0,0,0,1
+	texW: db 1,0,0,1, 1,0,0,1, 1,0,0,1, 1,1,1,1, 1,0,0,1
+	texX: db 1,0,0,1, 1,0,0,1, 0,1,1,0, 1,0,0,1, 1,0,0,1
+	texY: db 1,0,0,1, 1,0,0,1, 1,1,1,1, 0,0,1,0, 0,0,1,0
+	texZ: db 1,1,1,1, 0,0,0,1, 0,0,1,0, 0,1,0,0, 1,1,1,1
+	texEM: db 0,0,1,0, 0,0,1,0, 0,0,1,0, 0,0,0,0, 0,0,1,0
+	texnummap: dw tex0,tex1,tex2,tex3,tex4,tex5,tex6,tex7,tex8,tex9,texA,texB,\
+	              texC,texD,texE,texF
+	texasciimap: dw 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\
+	                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\
+	                0,texEM,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\
+	                0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\
+	                0,texA,texB,texC,texD,texE,texF,texG,\
+	                texH,texI,texJ,texK,texL,texM,texN,texO,\
+	                texP,texQ,texR,texS,texT,texU,texV,texW,\
+	                texX,texY,texZ,0,0,0,0,0,

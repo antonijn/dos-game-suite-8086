@@ -1,51 +1,58 @@
-GRID_WIDTH  equ 300
-GRID_HEIGHT equ 150
-TILE_WIDTH  equ 10
-TILE_HEIGHT equ 10
-GRID_XOFFS  equ 10
-GRID_YOFFS  equ 25
-NUM_XTILES equ GRID_WIDTH/TILE_WIDTH
-NUM_YTILES equ GRID_HEIGHT/TILE_HEIGHT
-MAX_SNAKE_LEN equ 0x80
-START_SNAKE_LEN equ 5
-ACCELERATION equ 2000
+GRID_WIDTH: equ 300
+GRID_HEIGHT: equ 150
+TILE_WIDTH: equ 10
+TILE_HEIGHT: equ 10
+GRID_XOFFS: equ 10
+GRID_YOFFS: equ 25
+NUM_XTILES: equ GRID_WIDTH/TILE_WIDTH
+NUM_YTILES: equ GRID_HEIGHT/TILE_HEIGHT
+MAX_SNAKE_LEN: equ 0x80
+START_SNAKE_LEN: equ 5
+ACCELERATION: equ 2000
 
-BORDER_COLOUR equ LIGHT_GREEN
-POINT_COLOUR equ WHITE
-GRID_BACKG_COLOUR equ LIGHT_GRAY
-GRID_LINE_COLOUR equ DARK_GRAY
-SNAKE_COLOUR equ GREEN
+BORDER_COLOUR: equ LIGHT_GREEN
+POINT_COLOUR: equ WHITE
+GRID_BACKG_COLOUR: equ LIGHT_GRAY
+GRID_LINE_COLOUR: equ DARK_GRAY
+SNAKE_COLOUR: equ GREEN
 
-snake resb 2*MAX_SNAKE_LEN
-snake_startidx dw 0
-snake_length dw 0
+RND_A: equ 5555
+RND_B: equ 444
 
-pnt_x resb 1
-pnt_y resb 1
+section .bss
+	rnd_seed: resw 1
+	snake: resb 2*MAX_SNAKE_LEN
 
-dir_x db 1
-dir_y db 0
-dir_prev_x db 1
-dir_prev_y db 0
+section .data
+	snake_startidx: dw 0
+	snake_length: dw 0
 
-rnd_seed resw 1
-RND_A equ 5555
-RND_B equ 444
+section .bss
+	pnt_x: resb 1
+	pnt_y: resb 1
 
-score dw 0
+section .data
+	dir_x: db 1
+	dir_y: db 0
+	dir_prev_x: db 1
+	dir_prev_y: db 0
+	
+	score: dw 0
+	
+	interval: dd 0x30000
 
-interval dd 0x30000
+	msg0: db "YOU SCORED "
+.len: equ $-msg0
+	msg1: db " POINTS!"
+.len: equ $-msg1
+	msg2: db "PRESS ANY KEY TO QUIT"
+.len: equ $-msg2
 
-msg0 db "YOU SCORED "
-msg0len equ $-msg0
-msg1 db " POINTS!"
-msg1len equ $-msg1
-msg2 db "PRESS ANY KEY TO QUIT"
-msg2len equ $-msg2
+section .text
 
 main:
-	mov ah, 0x00
-	int 0x1a
+	xor ah, ah
+	int 0x1a ; get time
 	mov [rnd_seed], dx
 
 	call renderscore
@@ -53,7 +60,110 @@ main:
 	call initsnake
 	call newpoint
 	
-	call update
+.gameloop:
+	;sleep
+	mov ah, 0x86
+	mov dx, [interval]     ; lsw
+	mov cx, [interval + 2] ; msw: little endian
+	int 0x15    ; microseconds
+	
+	call snake_endpos ;get end pos
+	; registers intact, result in ax
+	
+	push ax
+	
+	mov al, [dir_x]
+	mov [dir_prev_x], al
+	mov al, [dir_y]
+	mov [dir_prev_y], al
+	call input
+	
+	pop ax ;pop endpos back
+	add al, [dir_x]
+	add ah, [dir_y]
+	
+	cmp al, -1
+	jne .xneminusone
+	mov al, NUM_XTILES-1
+	
+.xneminusone:
+	cmp ah, -1
+	jne .yneminusone
+	mov ah, NUM_YTILES-1
+	
+.yneminusone:
+	cmp al, NUM_XTILES
+	jne .xnentiles
+	xor al, al
+	
+.xnentiles:
+	cmp ah, NUM_YTILES
+	jne .ynentiles
+	xor ah, ah
+	
+.ynentiles:
+	call snake_setnextpos ;move head
+	; registers intact
+	
+	push ax ;store before is_tile_empty
+	
+	push ax
+	call is_tile_empty
+	jnz .continue ; continue if empty
+	
+	jmp die
+	
+.continue:
+	pop ax ;restore
+	push ax; save before boxcol
+	
+	push ax
+	mov ax, SNAKE_COLOUR
+	push ax
+	call snake_boxcol ;colourise
+	; registers destroyed
+	
+	pop ax ;restore
+	
+	cmp al, [pnt_x] ; x == pnt_x
+	jne .nepnt
+	cmp ah, [pnt_y] ; && y == pnt_y
+	jne .nepnt
+	
+	; hit point
+	cmp word [interval + 2], 0
+	je .skip_speedup
+	
+	; speed up
+	sub word [interval], ACCELERATION
+	sbb word [interval + 2], 0
+	
+.skip_speedup:
+	add word [score], 10
+	call renderscore
+	call newpoint
+	
+	inc word [snake_length]
+	jmp .gameloop
+	
+.nepnt:
+	call snake_startpos
+	; registers intact, result in ax
+	
+	push ax
+	mov ax, GRID_BACKG_COLOUR
+	push ax
+	call snake_boxcol
+	; registers destroyed
+	
+	xor dx, dx
+	mov ax, [snake_startidx]
+	inc ax
+	mov bx, MAX_SNAKE_LEN
+	div bx
+	mov [snake_startidx], dx
+	
+	jmp .gameloop
 
 ; Gets a random number
 ;
@@ -74,15 +184,15 @@ clearkbbuf:
 
 	jz .return ; no key, exit
         
-	mov ah, 0x00
+	xor ah, ah
 	int 0x16
-	
 	jmp clearkbbuf
+	
 .return:
 	ret
 	
-exit:
-	mov ax, 0
+die:
+	xor ax, ax
 	push ax
 	push ax
 	mov ax, 320
@@ -96,11 +206,11 @@ exit:
 	mov ah, 0x86
 	xor dx, dx     ; lsw
 	mov cx, 0x0006 ; msw: little endian
-	int 0x15    ; microseconds
+	int 0x15    ; sleep microseconds
 	
 	mov ax, msg0 ; YOU SCORED 
 	push ax
-	mov ax, msg0len
+	mov ax, msg0.len
 	push ax
 	mov ax, 10
 	push ax
@@ -113,7 +223,7 @@ exit:
 	push ax
 	mov ax, 10
 	push ax
-	mov ax, 10+5*msg0len
+	mov ax, 10+5*msg0.len
 	push ax
 	mov ax, 10
 	push ax
@@ -124,11 +234,11 @@ exit:
 	
 	mov bx, msg1 ; POINTS!
 	push bx
-	mov bx, msg1len
+	mov bx, msg1.len
 	push bx
 	mov bx, 5
 	mul bx
-	add ax, 10+5*msg0len
+	add ax, 10+5*msg0.len
 	push ax
 	mov ax, 10
 	push ax
@@ -138,7 +248,7 @@ exit:
 	
 	mov ax, msg2 ; PRESS ANY KEY TO QUIT
 	push ax
-	mov ax, msg2len
+	mov ax, msg2.len
 	push ax
 	mov ax, 10
 	push ax
@@ -150,13 +260,12 @@ exit:
 	
 	call clearkbbuf
 	
-	mov ah, 0x00
+	xor ah, ah
 	int 0x16 ; get key
 	
 	jmp terminate
 	
 renderscore:
-	
 	push word [score]
 	mov ax, 10
 	push ax
@@ -168,12 +277,12 @@ renderscore:
 	
 	ret
 	
-; Checks if given tile is snake.
+; Checks if given tile is not a snake.
 ;
 ; [bp + 4] is tile pos
 ;
-; ax is not 0 if tile is snake
-is_tile_snake:
+; zf is 0 if no snake occupies tile
+is_tile_empty:
 	push bp
 	mov bp, sp
 	
@@ -194,15 +303,8 @@ is_tile_snake:
 	
 	pop bp
 	
-	cmp al, SNAKE_COLOUR
-	je .issnake
-	
-	xor ax, ax
-	ret 2
-	
-.issnake:
-	
-	mov ax, 1
+	sub al, SNAKE_COLOUR
+	test al, al
 	ret 2
 	
 ; Gets the snake start pos.
@@ -238,7 +340,6 @@ snake_endpos:
 	dec ax
 	mov bx, MAX_SNAKE_LEN
 	div bx
-	;mov dx, ax
 	
 	mov ax, 2
 	mul dx
@@ -263,7 +364,6 @@ snake_setnextpos:
 	xor dx, dx
 	mov ax, [snake_length]
 	add ax, [snake_startidx]
-	;dec ax
 	mov bx, MAX_SNAKE_LEN
 	div bx
 	
@@ -348,36 +448,36 @@ input:
     ret
     
 .handlekey:
-    mov ah, 0x00
+    xor ah, ah
 	int 0x16
 
 	cmp byte [dir_prev_x], 1
-	je .ab
+	je .leftbreak
 	cmp ah, 0x4b ; left arrow scan code
-	jne .ab
+	jne .leftbreak
 	mov byte [dir_x], -1
 	mov byte [dir_y], 0
 	jmp input
-.ab:
-	
+
+.leftbreak:
 	cmp byte [dir_prev_y], -1
-	je .sb
+	je .downbreak
 	cmp ah, 0x50 ; down arrow scan code
-	jne .sb
+	jne .downbreak
 	mov byte [dir_x], 0
 	mov byte [dir_y], 1
 	jmp input
-.sb:
-
+	
+.downbreak:
 	cmp byte [dir_prev_x], -1
-	je .db
+	je .rightbreak
 	cmp ah, 0x4d ; right arrow scan code
-	jne .db
+	jne .rightbreak
 	mov byte [dir_x], 1
 	mov byte [dir_y], 0
 	jmp input
-.db:
 	
+.rightbreak:
 	cmp byte [dir_prev_y], 1
 	je input ;repeat
 	cmp ah, 0x48 ; up arrow scan code
@@ -405,14 +505,13 @@ newpoint:
 	push dx
 	
 	push dx
-	call is_tile_snake
-	test ax, ax
-	jz .break
+	call is_tile_empty
+	jnz .break ;break if empty
 	
 	pop dx
-	jnz newpoint
-.break:
+	jz newpoint ;loop if not empty
 	
+.break:
 	pop dx
 	
 	push dx
@@ -422,114 +521,9 @@ newpoint:
 	
 	ret
 	
-; Moves the snake.
-update:
-
-	;sleep ~.5 seconds
-	mov ah, 0x86
-	mov dx, [interval]     ; lsw
-	mov cx, [interval + 2] ; msw: little endian
-	int 0x15    ; microseconds
-	
-	call snake_endpos ;get end pos
-	; registers intact, result in ax
-	
-	push ax
-	
-	mov al, [dir_x]
-	mov [dir_prev_x], al
-	mov al, [dir_y]
-	mov [dir_prev_y], al
-	call input
-	
-	pop ax ;pop endpos back
-	add al, [dir_x]
-	add ah, [dir_y]
-	
-	cmp al, -1
-	jne .xneminusone
-	mov al, NUM_XTILES-1
-.xneminusone:
-	cmp ah, -1
-	jne .yneminusone
-	mov ah, NUM_YTILES-1
-.yneminusone:
-	cmp al, NUM_XTILES
-	jne .xnentiles
-	mov al, 0
-.xnentiles:
-	cmp ah, NUM_YTILES
-	jne .ynentiles
-	mov ah, 0
-.ynentiles:
-	
-	call snake_setnextpos ;move head
-	; registers intact
-	
-	push ax ;store before is_tile_snake
-	
-	push ax
-	call is_tile_snake
-	test ax, ax
-	jz .continue
-	
-	jmp exit
-	
-.continue:
-	pop ax ;restore
-	push ax; save before boxcol
-	
-	push ax
-	mov ax, SNAKE_COLOUR
-	push ax
-	call snake_boxcol ;colourise
-	; registers destroyed
-	
-	pop ax ;restore
-	
-	cmp al, [pnt_x] ; x == pnt_x
-	jne .nepnt
-	cmp ah, [pnt_y] ; && y == pnt_y
-	jne .nepnt
-	; hit point
-	
-	cmp word [interval + 2], 0
-	je .skip_speedup
-	
-	; speed up
-	sub word [interval], ACCELERATION
-	sbb word [interval + 2], 0
-.skip_speedup:
-	
-	add word [score], 10
-	call renderscore
-	call newpoint
-	
-	inc word [snake_length]
-	jmp update
-	
-.nepnt:
-	call snake_startpos
-	; registers intact, result in ax
-	
-	push ax
-	mov ax, GRID_BACKG_COLOUR
-	push ax
-	call snake_boxcol
-	; registers destroyed
-	
-	xor dx, dx
-	mov ax, [snake_startidx]
-	inc ax
-	mov bx, MAX_SNAKE_LEN
-	div bx
-	mov [snake_startidx], dx
-	
-	jmp update
-	
 initsnake:
-	
 	xor cx, cx
+	
 .loop:
 	cmp cx, START_SNAKE_LEN
 	jb .continue
@@ -561,7 +555,6 @@ initsnake:
 	jmp .loop
 	
 initgrid:
-	
 	; background
 	mov ax, GRID_XOFFS
 	push ax
@@ -577,6 +570,7 @@ initgrid:
 	
 	; grid vertical stripes
 	mov cx, GRID_XOFFS
+	
 .xloop:
 	cmp cx, GRID_WIDTH+GRID_XOFFS
 	jae .xbreak
@@ -595,10 +589,11 @@ initgrid:
 	
 	add cx, TILE_WIDTH
 	jmp .xloop
+	
 .xbreak:
-
 	; grid horizontal stripes
 	mov cx, GRID_YOFFS
+	
 .yloop:
 	cmp cx, GRID_HEIGHT+GRID_YOFFS
 	jae .ybreak
@@ -617,8 +612,8 @@ initgrid:
 	
 	add cx, TILE_HEIGHT
 	jmp .yloop
+	
 .ybreak:
-
 	; grid outline
 	mov ax, GRID_XOFFS
 	push ax
