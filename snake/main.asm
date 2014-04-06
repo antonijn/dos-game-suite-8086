@@ -1,3 +1,7 @@
+[bits 16]
+[cpu 8086]
+org 0x100
+
 GRID_WIDTH: equ 300
 GRID_HEIGHT: equ 150
 TILE_WIDTH: equ 10
@@ -19,19 +23,40 @@ SNAKE_COLOUR: equ GREEN
 RND_A: equ 5555
 RND_B: equ 444
 
+section .text
+
+entry:
+	mov ah, 0x0f
+	int 0x10     ; get video mode
+	mov [mode], ax     ; store vid mode
+	
+	xor ah, ah
+	mov al, 0x13
+	int 0x10     ; set to graphics mode
+	
+	call main
+	
+terminate:
+	mov ax, [mode]      ; restore vid mode
+	xor ah, ah
+	int 0x10
+	
+	mov ah, 0x4c
+	int 0x21 ; exit
+	
+%include "../gfx.asm"
+
 section .bss
+	mode: resw 1
 	rnd_seed: resw 1
 	snake: resb 2*MAX_SNAKE_LEN
 
-section .data
-	snake_startidx: dw 0
-	snake_length: dw 0
-
-section .bss
 	pnt_x: resb 1
 	pnt_y: resb 1
 
 section .data
+	snake_startidx: dw 0
+	snake_length: dw 0
 	dir_x: db 1
 	dir_y: db 0
 	dir_prev_x: db 1
