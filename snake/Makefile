@@ -1,3 +1,6 @@
 build:
-	nasm -f bin -o SNAKE.COM main.asm
-	dosbox ./SNAKE.COM
+	nasm -f bin -o snake.com main.asm
+
+run:
+	make build
+	dosbox ./snake.com
