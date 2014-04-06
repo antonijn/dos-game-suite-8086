@@ -34,7 +34,7 @@ entry:
 	mov al, 0x13
 	int 0x10     ; set to graphics mode
 	
-	call main
+	jmp main
 	
 terminate:
 	mov ax, [mode]      ; restore vid mode
