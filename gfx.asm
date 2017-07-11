@@ -27,29 +27,29 @@ section .text
 rendertex:
 	push bp
 	mov bp, sp
-	
+
 	mov ax, 0xa000
 	mov es, ax
-	
+
 	xor cx, cx ; cx = y
-	
+
 .jmpY:
 	cmp cx, [bp + 10]
 	jae .breakY
-	
+
 	xor di, di ; di = x
-	
+
 .jmpX:
 	mov ax, [bp + 12]
 	cmp di, ax
 	jae .breakX
-	
+
 	mul cx
 	add ax, di        ; (y * width) + x
 	mov bx, ax
-	mov si, [bp + 4] 
+	mov si, [bp + 4]
 	mov bl, [si + bx] ; bl = tex[y * width + x]
-	
+
 	mov ax, [bp + 6]
 	add ax, cx
 	mov si, 320
@@ -58,10 +58,10 @@ rendertex:
 	add ax, di      ; + xoffs + x
 	mov si, ax
 	mov [es:si], bl
-	
+
 	inc di
 	jmp .jmpX
-	
+
 .breakX:
 	inc cx
 	jmp .jmpY
@@ -82,20 +82,20 @@ rendertex:
 renderint:
 	push bp
 	mov bp, sp
-	
+
 	xor cx, cx
 	mov ax, [bp + 12]
 	test ax, ax
 	jnz .calcloop
-	
+
 	; i is zero
 	push cx
 	inc cx
-	
+
 .calcloop:
 	test ax, ax
 	jz .calcleave   ; if (!i) break
-	
+
 	xor dx,dx
 	div word [bp + 10] ; i /= base, dx has remainder
 	push dx ; store rem on stack
@@ -113,32 +113,32 @@ renderint:
 	pop cx ;numDigits
 	cmp di, cx
 	jae .return
-	
+
 	pop bx ;pop the previously pushed remainder (digit) (first arg)
-	
+
 	push cx
 	push di ;save numDigit, numDigits
-	
+
 	push bx ;digit: first arg
-	mov ax, 5 
+	mov ax, 5
 	mul di
 	add ax, [bp + 8]
 	push ax            ;xoffsnew = xoffs + 5*numDigit
 	push word [bp + 6] ;yoffs
-	
+
 	push word [bp + 4] ;col
 	call renderdigit
 	; all regs destroyed
-	
+
 	pop bx
 	inc bx
 	push bx ;++numDigit (numDigit is at top of stack)
-	
+
 	jmp .renderloop
-	
+
 .return: ;numDigits in cx
 	mov ax, cx
-	
+
 	pop bp
 	ret 10
 
@@ -149,7 +149,7 @@ renderint:
 ; si contains tex
 replcol:
 	push bx
-	
+
 	mov bx, -1
 
 .loop:
@@ -159,12 +159,12 @@ replcol:
 	cmp byte [si + bx], 0
 	je .loop
 	mov [si + bx], dl
-	jmp .loop	
+	jmp .loop
 
 .break:
 	pop bx
 	ret
-	
+
 ; Write digit to the screen
 ;
 ; digit 10[bp]
@@ -174,28 +174,28 @@ replcol:
 renderdigit:
 	push bp
 	mov bp, sp
-	
+
 	mov ax, 2
 	mul word [bp + 10]
 	mov bx, ax
 	mov si, [texnummap + bx]
-	
+
 	mov dl, [bp + 4] ; little endian, col byte is the first one
 	call replcol     ; replace colours with col
-	
+
 	mov ax, 4
 	push ax ;w
 	mov ax, 5
 	push ax ;h
 	push word [bp + 8] ;xoffs
 	push word [bp + 6] ;yoffs
-	
+
 	push word si  ;tex
 	call rendertex
-	
+
 	pop bp
 	ret 8
-	
+
 ; Fills a rectangle with a colour.
 ;
 ; xoffs 12[bp]
@@ -206,22 +206,22 @@ renderdigit:
 fillrect:
 	push bp
 	mov bp, sp
-	
+
 	mov ax, 0xa000
 	mov es, ax
-	
+
 	xor cx, cx ;y
-	
+
 .jmpY:
 	cmp cx, [bp + 6]
 	jae .breakY
 
 	xor bx, bx ;x
-	
+
 .jmpX:
 	cmp bx, [bp + 8]
 	jae .breakX
-	
+
 	mov ax, cx
 	add ax, [bp + 10]
 	mov di, 320
@@ -231,14 +231,14 @@ fillrect:
 	mov di, ax
 	mov al, [bp + 4]
 	mov [es:di], al
-	
+
 	inc bx
 	jmp .jmpX
-	
+
 .breakX:
 	inc cx
 	jmp .jmpY
-	
+
 .breakY:
 	pop bp
 	ret 10
@@ -252,16 +252,16 @@ fillrect:
 renderlinev:
 	push bp
 	mov bp, sp
-	
+
 	mov ax, 0xa000
 	mov es, ax
-	
+
 	xor cx, cx ;y
-	
+
 .loop:
 	cmp cx, [bp + 6]
 	jae .break
-	
+
 	mov ax, 320
 	mov dx, [bp + 8]
 	add dx, cx        ; yoffs + y
@@ -270,10 +270,10 @@ renderlinev:
 	add bx, ax        ; + xoffs
 	mov al, [bp + 4]  ; col
 	mov [es:bx], al
-	
+
 	inc cx
 	jmp .loop
-	
+
 .break:
 	pop bp
 	ret 8
@@ -287,28 +287,28 @@ renderlinev:
 renderlineh:
 	push bp
 	mov bp, sp
-	
+
 	mov ax, 0xa000
 	mov es, ax
-	
+
 	mov ax, 320
 	mul word [bp + 8]
-	
+
 	xor cx, cx ;x
-	
+
 .loop:
 	cmp cx, [bp + 6]
 	jae .break
-	
+
 	mov bx, ax
 	add bx, [bp + 10]
 	add bx, cx
 	mov dl, [bp + 4]  ; col
 	mov [es:bx], dl
-	
+
 	inc cx
 	jmp .loop
-	
+
 .break:
 	pop bp
 	ret 8
@@ -322,19 +322,19 @@ renderlineh:
 renderchar:
 	push bp
 	mov bp, sp
-	
+
 	mov ax, 2
 	mul word [bp + 10]
 	mov bx, ax
 	mov si, [texasciimap + bx] ;texamap[2*ch]
-	
+
 	test si, si
 	jz .ret
-	
+
 	mov dl, byte [bp + 4] ;little endian
 	call replcol
 	; registers intact
-	
+
 	mov ax, 4
 	push ax
 	mov ax, 5
@@ -343,11 +343,11 @@ renderchar:
 	push word [bp + 6]
 	push si
 	call rendertex
-	
+
 .ret:
 	pop bp
 	ret 8
-	
+
 ; Writes a string to the screen
 ;
 ; str   12[bp]
@@ -358,15 +358,15 @@ renderchar:
 renderstring:
 	push bp
 	mov bp, sp
-	
+
 	xor bx, bx ;idx
-	
+
 .loop:
 	cmp bx, [bp + 10]
 	jae .break
-	
+
 	push bx
-	
+
 	mov si, word [bp + 12]
 	xor ax, ax
 	mov al, byte [bx + si]
@@ -378,11 +378,11 @@ renderstring:
 	push word [bp + 6] ;arg2: y
 	push word [bp + 4] ;arg3: col
 	call renderchar
-	
+
 	pop bx
 	inc bx
 	jmp .loop
-	
+
 .break:
 	pop bp
 	ret 10
