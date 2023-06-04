@@ -70,6 +70,52 @@ rendertex:
 	pop bp
 	ret 10
 
+; Blit simple square texture to screen
+; ax, bx, cx and dx are preserved, di and si are not.
+; [bp + 12] display_x
+; [bp + 10] display_y
+; [bp + 8]  tex_width
+; [bp + 6]  tex_stride
+; [bp + 4]  buffer
+blit:
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+	push dx
+
+	mov ax, 0xa000
+	mov es, ax
+
+	mov ax, 320
+	mul word [bp + 10]
+	add ax, [bp + 12]
+	mov di, ax
+
+	cld
+	mov si, [bp + 4]
+	mov bx, [bp + 6]
+	mov dx, [bp + 8]
+	sub bx, dx
+	mov ax, dx
+.line_loop:
+	mov cx, dx
+	rep movsb
+
+	add si, bx
+	add di, 320
+	sub di, dx
+	dec ax
+	jnz .line_loop
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 10
+
 ; Writes an int to the screen
 ;
 ; i     12[bp]
