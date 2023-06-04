@@ -44,7 +44,7 @@ terminate:
 	mov ah, 0x4c
 	int 0x21 ; exit
 
-%include "../gfx.asm"
+%include "gfx.asm"
 
 section .bss
 	mode: resw 1
