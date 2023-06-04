@@ -20,6 +20,11 @@ GRID_BACKG_COLOUR: equ LIGHT_GRAY
 GRID_LINE_COLOUR: equ DARK_GRAY
 SNAKE_COLOUR: equ GREEN
 
+STATE_EMPTY: equ 0b00000000
+STATE_SNAKE: equ 0b01010101
+STATE_POINT: equ 0b10101010
+STATE_ANY:   equ 0b11111111
+
 RND_A: equ 5555
 RND_B: equ 444
 
@@ -51,11 +56,12 @@ section .bss
 	rnd_seed: resw 1
 	snake: resb 2*MAX_SNAKE_LEN
 
-	pnt_x: resb 1
-	pnt_y: resb 1
+	; Each byte contains four two-bit values corresponding to
+	; STATE_EMPTY, STATE_SNAKE or STATE_POINT.
+	tile_states: resb (NUM_XTILES*NUM_YTILES+3)/4
 
 section .data
-	snake_startidx: dw 0
+	snake_tail_idx: dw 0
 	snake_length: dw 0
 	dir_x: db 1
 	dir_y: db 0
@@ -72,6 +78,9 @@ section .data
 .len: equ $-msg1
 	msg2: db "PRESS ANY KEY TO QUIT"
 .len: equ $-msg2
+	; sprite:
+	; incbin "sprite.raw"
+; .len: equ $-sprite
 
 section .text
 
@@ -80,10 +89,10 @@ main:
 	int 0x1a ; get time
 	mov [rnd_seed], dx
 
-	call renderscore
-	call initgrid
-	call initsnake
-	call newpoint
+	call render_score
+	call init_grid
+	call init_snake
+	call new_random_point
 
 .gameloop:
 	;sleep
@@ -92,103 +101,107 @@ main:
 	mov cx, [interval + 2] ; msw: little endian
 	int 0x15    ; microseconds
 
-	call snake_endpos ;get end pos
-	; registers intact, result in ax
-
-	push ax
-
-	mov al, [dir_x]
-	mov [dir_prev_x], al
-	mov al, [dir_y]
-	mov [dir_prev_y], al
 	call input
+	call next_head_pos
 
-	pop ax ;pop endpos back
-	add al, [dir_x]
-	add ah, [dir_y]
-
-	cmp al, -1
-	jne .xneminusone
-	mov al, NUM_XTILES-1
-
-.xneminusone:
-	cmp ah, -1
-	jne .yneminusone
-	mov ah, NUM_YTILES-1
-
-.yneminusone:
-	cmp al, NUM_XTILES
-	jne .xnentiles
-	xor al, al
-
-.xnentiles:
-	cmp ah, NUM_YTILES
-	jne .ynentiles
-	xor ah, ah
-
-.ynentiles:
-	call snake_setnextpos ;move head
-	; registers intact
-
-	push ax ;store before is_tile_empty
+	push ax ; save
 
 	push ax
-	call is_tile_empty
-	jnz .continue ; continue if empty
+	call get_tile_state
+	test al, STATE_SNAKE
+	jnz die ; die if there is a snake
+	test al, STATE_POINT
 
-	jmp die
-
-.continue:
-	pop ax ;restore
-	push ax; save before boxcol
-
-	push ax
-	mov ax, SNAKE_COLOUR
-	push ax
-	call snake_boxcol ;colourise
-	; registers destroyed
-
-	pop ax ;restore
-
-	cmp al, [pnt_x] ; x == pnt_x
-	jne .nepnt
-	cmp ah, [pnt_y] ; && y == pnt_y
-	jne .nepnt
+	pop ax ; restore
+	jz .no_point
 
 	; hit point
 	cmp word [interval + 2], 0
-	je .skip_speedup
+	je .max_speed_reached
 
 	; speed up
 	sub word [interval], ACCELERATION
 	sbb word [interval + 2], 0
 
-.skip_speedup:
+.max_speed_reached:
+	push ax ; save
 	add word [score], 10
-	call renderscore
-	call newpoint
+	call render_score
+	; registers destroyed
+	pop ax ; restore
+
+	push ax
+	call snake_move_head
 
 	inc word [snake_length]
+
+	call new_random_point
 	jmp .gameloop
 
-.nepnt:
-	call snake_startpos
+.no_point:
+	push ax ; save next_head_pos
+
+	call snake_tail_pos
 	; registers intact, result in ax
+
+	push ax
+	mov bx, STATE_EMPTY
+	push bx
+	call set_tile_state
 
 	push ax
 	mov ax, GRID_BACKG_COLOUR
 	push ax
-	call snake_boxcol
+	call fill_tile
 	; registers destroyed
 
+	pop ax ; restore next_head_pos
+	push ax
+	call snake_move_head
+
 	xor dx, dx
-	mov ax, [snake_startidx]
+	mov ax, [snake_tail_idx]
 	inc ax
 	mov bx, MAX_SNAKE_LEN
 	div bx
-	mov [snake_startidx], dx
+	mov [snake_tail_idx], dx
 
 	jmp .gameloop
+
+; Get next position for snake head
+; note: leaves registers intact
+;
+; Returns:
+; next x in al
+; next y in ah
+next_head_pos:
+	call snake_head_pos ;get end pos
+	; registers intact, result in ax
+
+	add al, [dir_x]
+	add ah, [dir_y]
+
+	cmp al, -1
+	jne .nowrap_left
+	mov al, NUM_XTILES-1
+
+.nowrap_left:
+	cmp ah, -1
+	jne .nowrap_up
+	mov ah, NUM_YTILES-1
+
+.nowrap_up:
+	cmp al, NUM_XTILES
+	jne .nowrap_right
+	xor al, al
+
+.nowrap_right:
+	cmp ah, NUM_YTILES
+	jne .nowrap_down
+	xor ah, ah
+
+.nowrap_down:
+	ret
 
 ; Gets a random number
 ;
@@ -200,7 +213,7 @@ rand:
 	mov [rnd_seed], ax
 	ret
 
-clearkbbuf:
+clear_kb_buf:
 	xor cx, cx
 	xor ax, ax
 
@@ -211,11 +224,12 @@ clearkbbuf:
 
 	xor ah, ah
 	int 0x16
-	jmp clearkbbuf
+	jmp clear_kb_buf
 
 .return:
 	ret
 
+; Display game over message
 die:
 	xor ax, ax
 	push ax
@@ -283,14 +297,14 @@ die:
 	push ax
 	call renderstring
 
-	call clearkbbuf
+	call clear_kb_buf
 
 	xor ah, ah
 	int 0x16 ; get key
 
 	jmp terminate
 
-renderscore:
+render_score:
 	push word [score]
 	mov ax, 10
 	push ax
@@ -302,51 +316,110 @@ renderscore:
 
 	ret
 
-; Checks if given tile is not a snake.
+; Get pointer to byte containing state of given tile, and a mask
+; indicating the specific relevant bits.
 ;
 ; [bp + 4] is tile pos
 ;
-; zf is 0 if no snake occupies tile
-is_tile_empty:
+; Return mask in al
+; Return pointer in bx
+state_ptr_and_mask:
 	push bp
 	mov bp, sp
+	push cx
+	push dx
 
-	mov ax, 0xa000
-	mov es, ax
+	xor bx, bx
+	mov bl, [bp + 4] ; x
+	xor cx, cx
+	mov cl, [bp + 5] ; y
 
-	push word [bp + 4]
-	call get_tile_pix
-
-	xchg ax, bx ;ax now has y
-	mov cx, 320
+	mov ax, NUM_XTILES
 	mul cx
-	add ax, bx ; y*320 + x
+	add ax, bx
+
+	mov cx, 4
+	div cx
+
+	; ptr = tile_states + offset / 4
+	add ax, tile_states
 	mov bx, ax
 
-	xor ax, ax
-	mov al, [es:bx]
+	; mask = 0b11 << (offset % 4) * 2
+	mov cx, dx
+	shl cx, 1
 
+	mov ax, 0b11
+	shl ax, cl
+
+	pop dx
+	pop cx
 	pop bp
-
-	sub al, SNAKE_COLOUR
-	test al, al
 	ret 2
+
+; Get tile state.
+; note: leaves registers intact
+; [bp + 4] is tile pos
+;
+; Returns:
+; al contains tile state bits
+get_tile_state:
+	push bp
+	mov bp, sp
+	push bx
+
+	push word [bp + 4]
+	call state_ptr_and_mask
+
+	and al, [tile_states + bx]
+
+	pop bx
+	pop bp
+	ret 2
+
+; Set tile state.
+; note: leaves registers intact
+; [bp + 6] is tile pos
+; [bp + 4] is tile state
+set_tile_state:
+	push bp
+	mov bp, sp
+	push ax
+	push bx
+	push cx
+
+	push word [bp + 6]
+	call state_ptr_and_mask
+
+	mov cl, [tile_states + bx]
+
+	not al
+	and cl, al
+
+	not al
+	and al, [bp + 4]
+	or cl, al
+
+	mov [tile_states + bx], cl
+
+	pop cx
+	pop bx
+	pop ax
+	pop bp
+	ret 4
 
 ; Gets the snake start pos.
 ; note: leaves registers intact
 ;
 ; Returns x in al
 ; Returns y in ah
-snake_startpos:
+snake_tail_pos:
 	push bx
-	push dx
 
-	mov ax, 2
-	mul word [snake_startidx]
-	mov bx, ax
+	mov bx, [snake_tail_idx]
+	shl bx, 1
 	mov ax, [snake + bx]
 
-	pop dx
 	pop bx
 	ret
 
@@ -355,53 +428,65 @@ snake_startpos:
 ;
 ; Returns x in al
 ; Returns y in ah
-snake_endpos:
+snake_head_pos:
 	push bx
 	push dx
 
 	xor dx, dx
-	mov ax, [snake_length]
-	add ax, [snake_startidx]
+	mov ax, [snake_tail_idx]
+	add ax, [snake_length]
 	dec ax
 	mov bx, MAX_SNAKE_LEN
 	div bx
 
-	mov ax, 2
-	mul dx
-	mov bx, ax
-
+	mov bx, dx
+	shl bx, 1
 	mov ax, [snake + bx]
 
 	pop dx
 	pop bx
 	ret
 
-; Sets the snake end pos.
+; Sets the snake head pos.
 ; note: leaves registers intact
 ;
-; al contains x
-; ah contains y
-snake_setnextpos:
-	push bx
-	push dx
+; [bp + 4] contains new pos
+snake_move_head:
+	push bp
+	mov bp, sp
 	push ax
+	push bx
+	push cx
+	push dx
 
-	xor dx, dx
 	mov ax, [snake_length]
-	add ax, [snake_startidx]
+	add ax, [snake_tail_idx]
 	mov bx, MAX_SNAKE_LEN
 	div bx
 
-	mov ax, 2
-	mul dx
-	mov bx, ax
+	mov ax, [bp + 4]
 
-	pop ax
+	mov bx, dx
+	shl bx, 1
 	mov [snake + bx], ax
 
+	push ax
+	mov ax, SNAKE_COLOUR
+	push ax
+	call fill_tile ; colourise
+	; registers destroyed
+
+	push word [bp + 4]
+	mov bx, STATE_SNAKE
+	push bx
+	call set_tile_state
+
 	pop dx
+	pop cx
 	pop bx
-	ret
+	pop ax
+	pop bp
+	ret 2
 
 ; Gets the pixel position of a tile.
 ;
@@ -441,7 +526,7 @@ get_tile_pix:
 ;
 ; [bp + 6] contains the pos
 ; [bp + 4] contains the colour
-snake_boxcol:
+fill_tile:
 	push bp
 	mov bp, sp
 
@@ -451,9 +536,9 @@ snake_boxcol:
 	push ax
 	push bx
 	mov ax, TILE_WIDTH-1
-	push ax ; TILE_WIDTH-1
+	push ax
 	mov ax, TILE_HEIGHT-1
-	push ax ; TILE_HEIGHT-1
+	push ax
 	mov ax, [bp + 4]
 	push ax
 	call fillrect
@@ -461,8 +546,14 @@ snake_boxcol:
 	pop bp
 	ret 4
 
-; Get input
+; Handle input
 input:
+	mov al, [dir_x]
+	mov [dir_prev_x], al
+	mov al, [dir_y]
+	mov [dir_prev_y], al
+
+.repeat:
 	xor cx, cx
 	xor ax, ax
 
@@ -482,7 +573,7 @@ input:
 	jne .leftbreak
 	mov byte [dir_x], -1
 	mov byte [dir_y], 0
-	jmp input
+	jmp .repeat
 
 .leftbreak:
 	cmp byte [dir_prev_y], -1
@@ -491,7 +582,7 @@ input:
 	jne .downbreak
 	mov byte [dir_x], 0
 	mov byte [dir_y], 1
-	jmp input
+	jmp .repeat
 
 .downbreak:
 	cmp byte [dir_prev_x], -1
@@ -500,7 +591,7 @@ input:
 	jne .rightbreak
 	mov byte [dir_x], 1
 	mov byte [dir_y], 0
-	jmp input
+	jmp .repeat
 
 .rightbreak:
 	cmp byte [dir_prev_y], 1
@@ -509,77 +600,75 @@ input:
 	jne input ;repeat
 	mov byte [dir_x], 0
 	mov byte [dir_y], -1
-	jmp input ;repeat
+	jmp .repeat
 
-newpoint:
+new_random_point:
 	call rand ; ax
 	xor dx, dx
 	mov bx, NUM_YTILES
 	div bx
-	mov [pnt_y], dl
 	mov cl, dl ;y
 
 	call rand ; ax
 	xor dx, dx
 	mov bx, NUM_XTILES ;x
 	div bx
-	mov [pnt_x], dl
 
 	mov dh, cl
 
 	push dx
+	call get_tile_state
+	test al, STATE_ANY
+	jnz new_random_point ;loop if not empty
 
 	push dx
-	call is_tile_empty
-	jnz .break ;break if empty
-
-	pop dx
-	jz newpoint ;loop if not empty
-
-.break:
-	pop dx
+	mov ax, STATE_POINT
+	push ax
+	call set_tile_state
 
 	push dx
 	mov ax, POINT_COLOUR
 	push ax
-	call snake_boxcol
-
+	call fill_tile
 	ret
 
-initsnake:
-	xor cx, cx
+init_snake:
+	mov cx, START_SNAKE_LEN
+	mov [snake_length], cx
 
 .loop:
-	cmp cx, START_SNAKE_LEN
-	jb .continue
-	ret
+	; x
+	mov al, cl
+	inc al
 
-.continue:
-	mov ax, 2
-	mul cx     ; snake[2 * i]
-	mov bx, ax
+	; y
+	mov ah, 2
 
-	mov al, cl ;x
-	mov ah, 2  ;y
-	add al, 2
+	mov bx, cx
+	dec bx
+	shl bx, 1
 
 	mov [snake + bx], ax
 
+	push ax
+	mov bx, STATE_SNAKE
+	push bx
+	call set_tile_state
+	; registers preserved
+
 	push cx
 
-	push ax ;pos
+	push ax ; pos
 	mov ax, SNAKE_COLOUR
-	push ax ;colour
-	call snake_boxcol
+	push ax ; colour
+	call fill_tile
 	; registers destroyed
 
-	inc word [snake_length]
-
 	pop cx
-	inc cx
-	jmp .loop
+	loop .loop
+	ret
 
-initgrid:
+init_grid:
 	; background
 	mov ax, GRID_XOFFS
 	push ax
