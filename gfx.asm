@@ -20,6 +20,29 @@ GLYPH_HEIGHT: equ 5
 
 section .text
 
+; Enter mode 13h
+; [bp + 4] address of function to call in mode 13h
+enter_13h:
+	push bp
+	mov bp, sp
+
+	mov ah, 0x0f
+	int 0x10     ; get video mode
+	push ax      ; save
+
+	xor ah, ah
+	mov al, 0x13
+	int 0x10     ; set to graphics mode
+
+	call [bp + 4]
+
+	pop ax
+	xor ah, ah
+	int 0x10     ; restore graphics mode
+
+	pop bp
+	ret 2
+
 ; Blit simple square texture to screen
 ; ax, bx, cx and dx are preserved, di and si are not.
 ; [bp + 12] display_x
@@ -242,7 +265,7 @@ fill_rect:
 ; yoffs  8[bp]
 ; height 6[bp]
 ; colour 4[bp]
-renderlinev:
+render_line_v:
 	push bp
 	mov bp, sp
 
@@ -263,7 +286,7 @@ renderlinev:
 ; yoffs  8[bp]
 ; width  6[bp]
 ; colour 4[bp]
-renderlineh:
+render_line_h:
 	push bp
 	mov bp, sp
 

@@ -31,21 +31,9 @@ RND_B: equ 444
 section .text
 
 entry:
-	mov ah, 0x0f
-	int 0x10     ; get video mode
-	mov [mode], ax     ; store vid mode
-
-	xor ah, ah
-	mov al, 0x13
-	int 0x10     ; set to graphics mode
-
-	jmp main
-
-; Does not return
-terminate:
-	mov ax, [mode]      ; restore vid mode
-	xor ah, ah
-	int 0x10
+	mov bx, main
+	push bx
+	call enter_13h
 
 	mov ah, 0x4c
 	int 0x21 ; exit
@@ -104,7 +92,6 @@ section .data
 
 section .text
 
-; note: Does not return
 main:
 	xor ah, ah
 	int 0x1a ; get time
@@ -131,7 +118,11 @@ main:
 	push ax
 	call get_tile_state
 	test al, STATE_SNAKE
-	jnz die ; die if there is a snake
+	jz .no_snake
+	call die
+	ret
+
+.no_snake:
 	test al, STATE_POINT
 
 	jz .no_point
@@ -249,7 +240,6 @@ clear_kb_buf:
 	ret
 
 ; Display game over message
-; note: Does not return
 die:
 	xor ax, ax
 	push ax
@@ -322,7 +312,7 @@ die:
 	xor ah, ah
 	int 0x16 ; get key
 
-	jmp terminate
+	ret
 
 render_score:
 	push ax
@@ -770,7 +760,7 @@ init_grid:
 	push ax
 	mov ax, GRID_LINE_COLOUR
 	push ax
-	call renderlinev
+	call render_line_v
 	; registers destroyed
 	pop cx
 
@@ -793,7 +783,7 @@ init_grid:
 	push ax
 	mov ax, GRID_LINE_COLOUR
 	push ax
-	call renderlineh
+	call render_line_h
 	; registers destroyed
 	pop cx
 
@@ -810,7 +800,7 @@ init_grid:
 	push ax
 	mov ax, BORDER_COLOUR
 	push ax
-	call renderlineh
+	call render_line_h
 
 	mov ax, GRID_XOFFS
 	push ax
@@ -820,7 +810,7 @@ init_grid:
 	push ax
 	mov ax, BORDER_COLOUR
 	push ax
-	call renderlineh
+	call render_line_h
 
 	mov ax, GRID_XOFFS
 	push ax
@@ -830,7 +820,7 @@ init_grid:
 	push ax
 	mov ax, BORDER_COLOUR
 	push ax
-	call renderlinev
+	call render_line_v
 
 	mov ax, GRID_XOFFS+GRID_WIDTH
 	push ax
@@ -840,6 +830,6 @@ init_grid:
 	push ax
 	mov ax, BORDER_COLOUR
 	push ax
-	call renderlinev
+	call render_line_v
 
 	ret
