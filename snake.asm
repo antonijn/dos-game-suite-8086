@@ -30,9 +30,6 @@ EAST:  equ 1
 SOUTH: equ 2
 WEST:  equ 3
 
-RND_A: equ 5555
-RND_B: equ 444
-
 section .text
 
 entry:
@@ -190,15 +187,21 @@ next_head_pos:
 	ret
 
 ; Gets a random number
+; Courtesy of https://lemire.me/blog/2019/07/03/a-fast-16-bit-random-number-generator/
 ;
 ; Returns in ax
 rand:
 	push dx
 
-	mov ax, RND_A
-	mul word [rnd_seed]
-	add ax, RND_B
+	mov ax, [rnd_seed]
+	add ax, 0xFC15
 	mov [rnd_seed], ax
+
+	mov dx, 0x2AB
+	mul dx
+
+	; we use both high and low word
+	xor ax, dx
 
 	pop dx
 	ret
