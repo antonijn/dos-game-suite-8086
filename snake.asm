@@ -2,10 +2,10 @@
 [cpu 8086]
 org 0x100
 
-GRID_WIDTH: equ 300
-GRID_HEIGHT: equ 150
-TILE_WIDTH: equ 10
-TILE_HEIGHT: equ 10
+GRID_WIDTH: equ 297
+GRID_HEIGHT: equ 154
+TILE_WIDTH: equ 11
+TILE_HEIGHT: equ 11
 GRID_XOFFS: equ 10
 GRID_YOFFS: equ 25
 NUM_XTILES: equ GRID_WIDTH/TILE_WIDTH
@@ -25,6 +25,11 @@ STATE_SNAKE: equ 0b01010101
 STATE_POINT: equ 0b10101010
 STATE_ANY:   equ 0b11111111
 
+NORTH: equ 0
+EAST:  equ 1
+SOUTH: equ 2
+WEST:  equ 3
+
 RND_A: equ 5555
 RND_B: equ 444
 
@@ -38,7 +43,7 @@ entry:
 	mov ah, 0x4c
 	int 0x21 ; exit
 
-%include "gfx.asm"
+%include "lib/gfx.asm"
 
 section .bss
 	mode: resw 1
@@ -50,12 +55,21 @@ section .bss
 	tile_states: resb (NUM_XTILES*NUM_YTILES+3)/4
 
 section .data
+	init_snake_images:
+		dw img_tail          + TILE_WIDTH*TILE_HEIGHT
+		dw img_body_straight + TILE_WIDTH*TILE_HEIGHT
+		dw img_body_straight + TILE_WIDTH*TILE_HEIGHT
+		dw img_body_straight + TILE_WIDTH*TILE_HEIGHT
+		dw img_head          + TILE_WIDTH*TILE_HEIGHT
+
 	snake_tail_idx: dw 0
 	snake_length: dw 0
 	dir_x: db 1
 	dir_y: db 0
 	dir_prev_x: db 1
 	dir_prev_y: db 0
+	cardinal_dir: db EAST
+	prev_cardinal_dir: db EAST
 
 	score: dw 0
 
@@ -68,27 +82,7 @@ section .data
 	msg2: db "PRESS ANY KEY TO QUIT"
 .len: equ $-msg2
 
-	sprite: db \
-		0x22,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x22,\
-		0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,\
-		0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,\
-		0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,\
-		0x02,0x02,0x02,0x02,0x0F,0x02,0x02,0x02,0x02,\
-		0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,\
-		0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,\
-		0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x02,\
-		0x22,0x02,0x02,0x02,0x02,0x02,0x02,0x02,0x22
-
-	star_image: db \
-		0x07,0x07,0x07,0x07,0x0F,0x07,0x07,0x07,0x07,\
-		0x07,0x07,0x07,0x0F,0x07,0x0F,0x07,0x07,0x07,\
-		0x07,0x07,0x0F,0x07,0x07,0x07,0x0F,0x07,0x07,\
-		0x07,0x0F,0x07,0x0F,0x0F,0x0F,0x07,0x0F,0x07,\
-		0x0F,0x07,0x07,0x0F,0x0F,0x0F,0x07,0x07,0x0F,\
-		0x07,0x0F,0x07,0x0F,0x0F,0x0F,0x07,0x0F,0x07,\
-		0x07,0x07,0x0F,0x07,0x07,0x07,0x0F,0x07,0x07,\
-		0x07,0x07,0x07,0x0F,0x07,0x0F,0x07,0x07,0x07,\
-		0x07,0x07,0x07,0x07,0x0F,0x07,0x07,0x07,0x07
+%include "assets/snake.asm"
 
 section .text
 
@@ -148,28 +142,15 @@ main:
 	jmp .gameloop
 
 .no_point:
-	call snake_tail_pos
-	; registers intact, result in ax
-
-	push ax
-	mov bx, STATE_EMPTY
-	push bx
-	call set_tile_state
-
-	push ax
-	mov ax, GRID_BACKG_COLOUR
-	push ax
-	call fill_tile
+	call snake_move_tail
 
 	push cx
 	call snake_move_head
 
 	mov ax, [snake_tail_idx]
 	inc ax
-	mov bx, MAX_SNAKE_LEN
-	xor dx, dx
-	div bx
-	mov [snake_tail_idx], dx
+	and ax, MAX_SNAKE_LEN-1
+	mov [snake_tail_idx], ax
 
 	jmp .gameloop
 
@@ -341,6 +322,88 @@ render_score:
 	pop ax
 	ret
 
+; [bp + 4] x, y delta
+;
+; Output in ax
+cardinal:
+	push bp
+	mov bp, sp
+	push bx
+
+	mov bx, [bp + 4]
+	xor ax, ax
+
+	; x
+	test bl, bl
+	js .west
+	jnz .east
+
+	; y
+	test bh, bh
+	js .north
+	jmp .south
+.west:
+	inc ax
+.south:
+	inc ax
+.east:
+	inc ax
+.north:
+	pop bx
+	pop bp
+	ret 2
+
+; [bp + 6] Initial
+; [bp + 4] Final
+delta_pos:
+	push bp
+	mov bp, sp
+	push bx
+	push cx
+
+	mov ax, [bp + 4]
+	mov bx, [bp + 6]
+
+	; cl = delta y
+	mov cl, ah
+	sub cl, bh
+
+	; al = delta x
+	sub al, bl
+
+	mov bl, NUM_XTILES/2
+	mov bh, NUM_XTILES
+	cmp al, bl
+	jg .correct_x
+	neg bl
+	neg bh
+	cmp al, bl
+	jl .correct_x
+.check_y:
+	mov bl, NUM_YTILES/2
+	mov bh, NUM_YTILES
+	cmp cl, bl
+	jg .correct_y
+	neg bl
+	neg bh
+	cmp cl, bl
+	jl .correct_y
+	jmp .corrected
+
+.correct_x:
+	sub al, bh
+	jmp .check_y
+.correct_y:
+	sub cl, bh
+
+.corrected:
+	mov ah, cl
+
+	pop cx
+	pop bx
+	pop bp
+	ret 4
+
 ; Get pointer to byte containing state of given tile, and a mask
 ; indicating the specific relevant bits.
 ;
@@ -433,40 +496,21 @@ set_tile_state:
 	pop bp
 	ret 4
 
-; Gets the snake start pos.
-;
-; Returns x in al
-; Returns y in ah
-snake_tail_pos:
-	push bx
-
-	mov bx, [snake_tail_idx]
-	shl bx, 1
-	mov ax, [snake + bx]
-
-	pop bx
-	ret
-
 ; Gets the snake end pos.
 ;
 ; Returns x in al
 ; Returns y in ah
 snake_head_pos:
 	push bx
-	push dx
 
-	mov ax, [snake_tail_idx]
-	add ax, [snake_length]
-	dec ax
-	mov bx, MAX_SNAKE_LEN
-	xor dx, dx
-	div bx
-
-	mov bx, dx
+	mov bx, [snake_tail_idx]
+	add bx, [snake_length]
+	dec bx
+	and bx, MAX_SNAKE_LEN-1
 	shl bx, 1
+
 	mov ax, [snake + bx]
 
-	pop dx
 	pop bx
 	ret
 
@@ -480,6 +524,8 @@ snake_move_head:
 	push bx
 	push cx
 	push dx
+	push si
+	push di
 
 	mov ax, [snake_length]
 	add ax, [snake_tail_idx]
@@ -487,29 +533,129 @@ snake_move_head:
 	xor dx, dx
 	div bx
 
-	mov ax, [bp + 4]
+	; cx = new snake pos
+	mov cx, [bp + 4]
 
-	mov bx, dx
-	shl bx, 1
-	mov [snake + bx], ax
+	mov di, dx
+	shl di, 1
+	mov [snake + di], cx
 
-	push ax ; pos
-	mov ax, sprite
+	mov ax, TILE_WIDTH*TILE_HEIGHT
+	xor bx, bx
+	mov bl, [cardinal_dir]
+	mul bx
+	mov bx, ax
+
+	push cx ; pos
+	lea ax, [img_head + bx]
 	push ax
 	call blit_tile
 	; registers preserved
+
+	sub di, 2
+	jns .positive_di
+	add di, MAX_SNAKE_LEN*2
+.positive_di:
+	xor bx, bx
+	mov bl, [cardinal_dir]
+	xor dx, dx
+	mov dl, [prev_cardinal_dir]
+	mov ax, bx
+	sub ax, dx
+	jns .positive_al
+	add al, 4
+.positive_al:
+	test ax, 1
+	jz .straight
+
+	shr ax, 1
+	add dx, ax
+	and dx, 3
+
+	mov bx, img_body_bent
+	jmp .draw_prev_snake
+
+.straight:
+	mov dx, bx
+	and dx, 1
+	mov bx, img_body_straight
+
+.draw_prev_snake:
+	mov ax, TILE_WIDTH*TILE_HEIGHT
+	mul dx
+	mov si, ax
+
+	; prev snake pos
+	push word [snake + di]
+	lea ax, [si + bx]
+	push ax
+	call blit_tile
 
 	push word [bp + 4]
 	mov bx, STATE_SNAKE
 	push bx
 	call set_tile_state
 
+	pop di
+	pop si
 	pop dx
 	pop cx
 	pop bx
 	pop ax
 	pop bp
 	ret 2
+
+snake_move_tail:
+	push ax
+	push bx
+	push cx
+	push dx
+
+	; ax = old tail pos
+	mov bx, [snake_tail_idx]
+	shl bx, 1
+	mov ax, [snake + bx]
+
+	push ax
+	mov cx, STATE_EMPTY
+	push cx
+	call set_tile_state
+
+	push ax
+	mov cx, GRID_BACKG_COLOUR
+	push cx
+	call fill_tile
+
+	; cx = new tail pos
+	add bx, 2
+	and bx, (2*MAX_SNAKE_LEN)-1
+	mov cx, [snake + bx]
+
+	; dx = next tail pos
+	add bx, 2
+	and bx, (2*MAX_SNAKE_LEN)-1
+	mov dx, [snake + bx]
+
+	push cx
+	push dx
+	call delta_pos
+
+	push ax
+	call cardinal
+
+	mov dx, TILE_WIDTH*TILE_HEIGHT
+	mul dx
+
+	push cx
+	add ax, img_tail
+	push ax
+	call blit_tile
+
+	pop dx
+	pop cx
+	pop bx
+	pop ax
+	ret
 
 ; Gets the pixel position of a tile.
 ;
@@ -532,14 +678,12 @@ get_tile_pix:
 	mov ax, TILE_WIDTH
 	mul bx
 	add ax, GRID_XOFFS
-	inc ax
-	mov bx, ax         ; bx = x*tw + xoffs + 1
+	mov bx, ax         ; bx = x*tw + xoffs
 
 	mov ax, TILE_HEIGHT
 	mul cx
 	add ax, GRID_YOFFS
-	inc ax
-	mov cx, ax         ; cx = y*th + yoffs + 1
+	mov cx, ax         ; cx = y*th + yoffs
 
 	mov ax, bx
 	mov bx, cx
@@ -557,20 +701,22 @@ fill_tile:
 	push bp
 	mov bp, sp
 	push ax
+	push bx
 
 	push word [bp + 6]
 	call get_tile_pix
 
 	push ax
 	push bx
-	mov ax, TILE_WIDTH-1
+	mov ax, TILE_WIDTH
 	push ax
-	mov ax, TILE_HEIGHT-1
+	mov ax, TILE_HEIGHT
 	push ax
 	mov ax, [bp + 4]
 	push ax
 	call fill_rect
 
+	pop bx
 	pop ax
 	pop bp
 	ret 4
@@ -590,7 +736,7 @@ blit_tile:
 
 	push ax
 	push bx
-	mov ax, 9
+	mov ax, TILE_WIDTH
 	push ax
 	push ax
 	push word [bp + 4]
@@ -603,6 +749,8 @@ blit_tile:
 
 ; Handle input
 input:
+	mov al, [cardinal_dir]
+	mov [prev_cardinal_dir], al
 	mov al, [dir_x]
 	mov [dir_prev_x], al
 	mov al, [dir_y]
@@ -655,6 +803,9 @@ input:
 	jmp .repeat
 
 .end:
+	push word [dir_x]
+	call cardinal
+	mov [cardinal_dir], al
 	ret
 
 new_random_point:
@@ -688,7 +839,7 @@ new_random_point:
 	call set_tile_state
 
 	push dx ; pos
-	mov ax, star_image
+	mov ax, img_star
 	push ax
 	call blit_tile
 
@@ -717,16 +868,13 @@ init_snake:
 	mov [snake + bx], ax
 
 	push ax
-	mov bx, STATE_SNAKE
-	push bx
+	mov dx, STATE_SNAKE
+	push dx
 	call set_tile_state
-	; registers preserved
 
 	push ax ; pos
-	mov ax, sprite
-	push ax
+	push word [init_snake_images + bx]
 	call blit_tile
-	; registers preserved
 
 	loop .loop
 	ret
@@ -745,78 +893,32 @@ init_grid:
 	push ax
 	call fill_rect
 
-	; grid vertical stripes
-	mov cx, GRID_XOFFS
-
-.xloop:
-	cmp cx, GRID_WIDTH+GRID_XOFFS
-	jae .xbreak
-
-	push cx
-	push cx
-	mov ax, GRID_YOFFS
-	push ax
-	mov ax, GRID_HEIGHT
-	push ax
-	mov ax, GRID_LINE_COLOUR
-	push ax
-	call render_line_v
-	; registers destroyed
-	pop cx
-
-	add cx, TILE_WIDTH
-	jmp .xloop
-
-.xbreak:
-	; grid horizontal stripes
-	mov cx, GRID_YOFFS
-
-.yloop:
-	cmp cx, GRID_HEIGHT+GRID_YOFFS
-	jae .ybreak
-
-	push cx
-	mov ax, GRID_XOFFS
-	push ax
-	push cx
-	mov ax, GRID_WIDTH
-	push ax
-	mov ax, GRID_LINE_COLOUR
-	push ax
-	call render_line_h
-	; registers destroyed
-	pop cx
-
-	add cx, TILE_HEIGHT
-	jmp .yloop
-
-.ybreak:
 	; grid outline
-	mov ax, GRID_XOFFS
+	mov ax, GRID_XOFFS-1
 	push ax
-	mov ax, GRID_YOFFS
+	mov ax, GRID_YOFFS-1
 	push ax
-	mov ax, GRID_WIDTH+1
+	mov ax, GRID_WIDTH+2
 	push ax
 	mov ax, BORDER_COLOUR
 	push ax
 	call render_line_h
 
-	mov ax, GRID_XOFFS
+	mov ax, GRID_XOFFS-1
 	push ax
 	mov ax, GRID_YOFFS+GRID_HEIGHT
 	push ax
-	mov ax, GRID_WIDTH+1
+	mov ax, GRID_WIDTH+2
 	push ax
 	mov ax, BORDER_COLOUR
 	push ax
 	call render_line_h
 
-	mov ax, GRID_XOFFS
+	mov ax, GRID_XOFFS-1
 	push ax
-	mov ax, GRID_YOFFS+1
+	mov ax, GRID_YOFFS
 	push ax
-	mov ax, GRID_HEIGHT-1
+	mov ax, GRID_HEIGHT
 	push ax
 	mov ax, BORDER_COLOUR
 	push ax
@@ -824,9 +926,9 @@ init_grid:
 
 	mov ax, GRID_XOFFS+GRID_WIDTH
 	push ax
-	mov ax, GRID_YOFFS+1
+	mov ax, GRID_YOFFS
 	push ax
-	mov ax, GRID_HEIGHT-1
+	mov ax, GRID_HEIGHT
 	push ax
 	mov ax, BORDER_COLOUR
 	push ax
